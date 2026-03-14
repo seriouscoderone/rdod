@@ -1,0 +1,23 @@
+id: ""
+name: ""
+description: ""
+version: "0.0.1"
+
+ubiquitous_language:
+  - term: ""
+    definition: ""
+    invariants: []
+
+domain_clients: []
+
+subdomains: []
+
+kernels: []
+
+adjacents: []
+
+externals: []
+
+code_locations: []
+
+tags: []

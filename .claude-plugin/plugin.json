@@ -1,0 +1,14 @@
+{
+  "name": "rdod",
+  "version": "1.0.0",
+  "description": "Recursive Domain-Oriented Design (RDOD) — a DDD-inspired methodology for structuring and navigating software at any abstraction level. Guides domain detection, template filling, and codebase analysis.",
+  "author": {
+    "name": "seriouscoderone",
+    "url": "https://github.com/seriouscoderone"
+  },
+  "homepage": "https://github.com/seriouscoderone/rdod",
+  "repository": "https://github.com/seriouscoderone/rdod",
+  "license": "MIT",
+  "keywords": ["ddd", "domain-driven-design", "architecture", "rdod", "software-design"],
+  "skills": "./skills/"
+}

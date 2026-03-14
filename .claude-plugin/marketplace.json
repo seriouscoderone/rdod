@@ -1,0 +1,17 @@
+{
+  "name": "rdod-marketplace",
+  "owner": {
+    "name": "seriouscoderone",
+    "url": "https://github.com/seriouscoderone"
+  },
+  "plugins": [
+    {
+      "name": "rdod",
+      "description": "Recursive Domain-Oriented Design (RDOD) — a DDD-inspired methodology for structuring and navigating software at any abstraction level",
+      "source": {
+        "source": "github",
+        "repo": "seriouscoderone/rdod"
+      }
+    }
+  ]
+}
