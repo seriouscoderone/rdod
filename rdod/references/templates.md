@@ -59,6 +59,7 @@ issues:
     category: "<see categories below>"
     severity: "<low|medium|high|critical>"
     description: "<what's wrong and how it compromises this domain's structure>"
+    evidence: "<concrete proof: file path, method name, snippet, or test failure>"
     recommendation: "<see recommendations below>"
 
 # Code traceability

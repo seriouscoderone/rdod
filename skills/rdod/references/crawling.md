@@ -212,7 +212,104 @@ graph TD
 
 ---
 
-## Working notes
+## Focused Library Audit
+
+Use this when you want to deliberately evaluate a specific dependency — a known-bad library, a suspect kernel, or any reference that warrants more than incidental detection during crawling. Run this instead of (or after) the main crawl for the target library.
+
+**Trigger:** User names a specific library, or a crawl pass surfaces enough incidental issues on one dependency to warrant deeper investigation.
+
+---
+
+### Audit Step 1 — Identify the blast radius
+
+Before auditing the library itself, map who is exposed:
+
+1. Find every domain that lists this library as a `kernel`, `subdomain`, or `external`.
+2. For each of those domains, find their `domain_clients` — these are the upstream domains that inherit any damage.
+3. Write a short impact list: `<library> → affects: [domain-A, domain-B] → upstream: [domain-C, domain-D]`
+
+This tells you how bad "bad" actually is before you start digging.
+
+---
+
+### Audit Step 2 — Check classification correctness
+
+Is this library classified correctly in every domain that uses it?
+
+- Listed as a kernel but its types are being wrapped → `wrong-classification` + `kernel-pollution`
+- Listed as a subdomain but its types leak into the domain's public surface → `wrong-classification`
+- Listed as an external but it contributes to domain logic → `wrong-classification`
+
+Log one issue per domain that has it misclassified.
+
+---
+
+### Audit Step 3 — Check interface integrity
+
+Does the domain interact with this library through a clean interface?
+
+- Domain calls the library's concrete types directly with no port/interface → `missing-port`
+- The library's exceptions, error types, or internal structs appear in the domain's aggregates or events → `kernel-pollution`
+- The domain's public API exposes the library's types to its clients → `kernel-pollution` (severity: high — the blast radius now includes clients)
+
+For each finding: record the specific file, method, or type as `evidence`.
+
+---
+
+### Audit Step 4 — Check language integrity
+
+Does this library's vocabulary pollute or conflict with the domain's ubiquitous language?
+
+- Compare the library's type/method names against `ubiquitous-language.yaml` terms.
+- If the library uses the same word with a different meaning (e.g., library calls it `Frame`, domain calls it `Frame` but means something different) → `language-inconsistency`
+- If the domain has adopted the library's terminology wholesale without defining it in its own language → `modeling-gap` (the domain's language is hollow)
+
+---
+
+### Audit Step 5 — Check structural fit
+
+Does this library's shape fit its role in the hierarchy?
+
+- Does it do too much for a kernel (broad scope, many unrelated concerns)? → `hierarchy-imbalance` (`recommendation: split-subdomain` or `reclassify` to subdomain)
+- Does it have its own significant dependencies that the parent domain is now indirectly inheriting? → document those transitive deps; flag any that reach into infrastructure as `missing-port` against the parent domain
+- Is it actively maintained? If abandoned/unmaintained: log `other:maintainability` with evidence (last commit date, open critical issues)
+
+---
+
+### Audit Step 6 — Trace impact upward
+
+For each issue found in Steps 2–5:
+
+1. Note which domains in the blast radius (from Audit Step 1) are directly affected.
+2. For high/critical issues: add a corresponding issue entry in each affected domain's `domain.yaml` — not just the domain where the library lives. The `ref` points to the library; the `description` explains how the impact manifests in that specific domain.
+3. Produce a short impact summary:
+   ```
+   kernel://color-library
+     kernel-pollution (high) → video-editing: kernel exception types in RenderPass aggregate
+       → upstream impact: social-media-platform receives corrupted render events
+   ```
+
+---
+
+### Audit Step 7 — Deliver the verdict
+
+Summarize the audit as a structured finding:
+
+```
+LIBRARY AUDIT: <library-name>
+Classification: <current> → <correct if different>
+Issues found: <count by severity>
+  critical: N  high: N  medium: N  low: N
+Blast radius: <list of affected domains>
+Recommended action: <single primary recommendation>
+Rationale: <one sentence>
+```
+
+If `recommended action` is `replace`: note whether a suitable alternative exists and what the migration boundary would be (which port or ACL would contain the swap).
+
+If `recommended action` is `wrap-with-acl`: identify exactly which types/methods need wrapping and where the ACL boundary sits in the domain hierarchy.
+
+---
 
 - Mark unfilled stubs `version: "0.0.0-stub"` so they're distinguishable from completed domains.
 - If a dependency's role is ambiguous after applying the decision rule, note the ambiguity in `description` and move on — ambiguity is data, not failure.

@@ -29,6 +29,7 @@ issues: []
 #                     # hierarchy-imbalance | modeling-gap | other:<subtype>
 #   severity: ""      # low | medium | high | critical
 #   description: ""   # what's wrong and how it compromises this domain's structure
+#   evidence: ""      # concrete proof: file path, method name, snippet, test failure
 #   recommendation: "" # replace | wrap-with-acl | add-port | refactor-port |
 #                      # reclassify | split-subdomain | introduce-concept:<name>
 
