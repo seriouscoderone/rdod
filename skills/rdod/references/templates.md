@@ -52,6 +52,15 @@ externals:
     ref: "port://<this-domain>/outbound/<port-name>"
     implementation_notes: "<how adapters implement this>"
 
+# Issues (optional): architectural violations in this domain or its references
+# Move to issues.yaml + add issues_ref: "issues://<id>" if list exceeds ~10 entries
+issues:
+  - ref: "<affected-ref>"            # e.g., "kernel://color-library"
+    category: "<see categories below>"
+    severity: "<low|medium|high|critical>"
+    description: "<what's wrong and how it compromises this domain's structure>"
+    recommendation: "<see recommendations below>"
+
 # Code traceability
 code_locations:
   - path: "<repo-path>"              # e.g., "src/video-editing/core"
@@ -59,6 +68,36 @@ code_locations:
 
 tags: []
 ```
+
+---
+
+## Issue Categories (RDOD-native)
+
+Use these to diagnose how a violation compromises domain structure, hierarchy, or navigation. Always prefer a specific category over `other`.
+
+| Category | What it flags | Default recommendation |
+|---|---|---|
+| `kernel-pollution` | Kernel internals leaking into domain model beyond intended use | `wrap-with-acl` or `refactor-port` |
+| `missing-port` | Infrastructure or external dep used directly in domain code with no interface | `add-port` or `refactor-port` |
+| `language-inconsistency` | Same term used differently across domains with no ACL translating between them | `wrap-with-acl` or `introduce-concept:<name>` |
+| `wrong-classification` | Neighbor mislabeled (e.g., wrapped lib called a kernel; peer called a subdomain) | `reclassify` |
+| `inverted-dependency` | Lower-level domain imports from a higher-level one — creates a cycle | `refactor-port` or `split-subdomain` |
+| `hierarchy-imbalance` | Over-nesting (unnecessary depth) or under-nesting (monolith needing splits) | `split-subdomain` or `merge-hierarchy` |
+| `modeling-gap` | Missing concept, aggregate, or invariant that the domain needs but hasn't defined | `introduce-concept:<proposed-name>` |
+| `other:<subtype>` | Non-architectural issue (e.g., `other:security`, `other:performance`) | Varies — tie back to RDOD impact where possible |
+
+### Recommendation values
+
+| Value | Meaning |
+|---|---|
+| `replace` | Swap out the offending dependency entirely |
+| `wrap-with-acl` | Add an Anti-Corruption Layer to translate at the boundary |
+| `add-port` | Define a new interface so the domain depends on an abstraction |
+| `refactor-port` | Restructure an existing interface to fix the violation |
+| `reclassify` | Move the neighbor to the correct category in domain.yaml |
+| `split-subdomain` | Break an oversized domain or dependency into smaller parts |
+| `merge-hierarchy` | Collapse unnecessary nesting |
+| `introduce-concept:<name>` | Name and define a missing domain concept, e.g. `introduce-concept:RenderPipeline` |
 
 ---
 

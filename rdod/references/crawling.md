@@ -70,6 +70,8 @@ Inside the domain's source folder:
 4. For each term: write `term`, `definition`, and any `invariants` you can find (look for validation logic, assertions, `if`/`guard` checks that enforce a rule).
 5. Fill `ubiquitous-language.yaml`.
 
+**Issue cue:** If invariants are enforced ad-hoc across multiple places (repeated validation logic, no single owner) rather than inside a named aggregate or value object → log `modeling-gap` (`recommendation: introduce-concept:<proposed-name>`).
+
 ---
 
 ## Step 4 — Identify clients (upstream)
@@ -83,6 +85,8 @@ grep -rn "from <domain>\|import <domain>\|use <domain>::\|require('<domain>')" .
 For each caller:
 - Is it a higher-level domain orchestrating this one? → Domain client. Add to `domain_clients`.
 - Is it a sibling at roughly the same level using this as a utility? → Likely adjacent (come back to this in Step 6).
+
+**Issue cue:** If a caller imports internal implementation types rather than going through a port/interface, log `inverted-dependency` or `missing-port` against this domain.
 
 ---
 
@@ -101,6 +105,12 @@ For each dependency, ask two questions in order:
 - No domain model involvement at all (purely runtime plumbing) → **External concern** (handle in Step 7).
 
 Fill `subdomains` and `kernels` in `domain.yaml`.
+
+**Issue cues:**
+- A lib is classified as a kernel but its types are actually being wrapped → log `wrong-classification` (`recommendation: reclassify`).
+- A kernel's exception types, internal structs, or implementation details appear in domain aggregates beyond what the model needs → log `kernel-pollution`.
+- A subdomain has no clear interface — the domain calls into it directly by concrete type → log `missing-port`.
+- A subdomain appears to have more responsibility than its name implies, or covers multiple unrelated concerns → log `hierarchy-imbalance` (`recommendation: split-subdomain`).
 
 ---
 
@@ -123,6 +133,8 @@ Flag `is_cross_cutting: true` for concerns that touch many domains (auth, loggin
 
 Fill `adjacents` in `domain.yaml`.
 
+**Issue cue:** If two adjacent domains share concepts (e.g., both have a `User` type) with no ACL or Shared Kernel between them → log `language-inconsistency` against both domains.
+
 ---
 
 ## Step 7 — Identify externals and ports
@@ -138,6 +150,11 @@ For each:
 - If you find raw DB/HTTP calls directly in domain logic → flag as purity violation.
 
 Fill `externals` in `domain.yaml`. For each port (inbound and outbound), fill `ports.yaml`.
+
+**Issue cues:**
+- Raw infrastructure calls (DB queries, HTTP requests, file I/O) found directly in domain logic with no interface → log `missing-port`.
+- No inbound port exists — clients call internal domain types directly → log `missing-port` (inbound).
+- An external concern's interface is defined outside the domain (e.g., in an infra layer) rather than owned by the domain → log `inverted-dependency`.
 
 ---
 

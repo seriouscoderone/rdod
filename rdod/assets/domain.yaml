@@ -20,4 +20,16 @@ externals: []
 
 code_locations: []
 
+# Issues (optional): architectural violations in this domain or its references.
+# Move to a separate issues.yaml and add issues_ref: "issues://<id>" here if list exceeds ~10 entries.
+issues: []
+# - ref: ""           # what is being called out, e.g. "kernel://color-library"
+#   category: ""      # kernel-pollution | missing-port | language-inconsistency |
+#                     # wrong-classification | inverted-dependency |
+#                     # hierarchy-imbalance | modeling-gap | other:<subtype>
+#   severity: ""      # low | medium | high | critical
+#   description: ""   # what's wrong and how it compromises this domain's structure
+#   recommendation: "" # replace | wrap-with-acl | add-port | refactor-port |
+#                      # reclassify | split-subdomain | introduce-concept:<name>
+
 tags: []
