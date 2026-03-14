@@ -22,18 +22,18 @@ Before touching any domain, enumerate **everything** in the repo. This becomes t
    - Python: `pipdeptree`
    - Rust: `cargo tree`
 
-3. **Write the master checklist.** List every distinct internal module/package by name. This is the authoritative list. Example:
+3. **Write the master checklist.** List every distinct internal module/package with its provisional classification from the dependency graph. This is the authoritative list. Example:
    ```
    MASTER CHECKLIST
-   [ ] social-media-platform
-   [ ] video-editing
-   [ ] format-handling
-   [ ] rendering-engine
-   [ ] color-library (external kernel candidate)
-   [ ] shared-types
-   [ ] legacy-importer     ← isolated, not in dep graph yet
+   [ ] social-media-platform    (client — no dependents)
+   [ ] video-editing            (core — most dependents)
+   [ ] format-handling          (subdomain candidate)
+   [ ] rendering-engine         (subdomain candidate)
+   [ ] color-library            (kernel candidate — external)
+   [ ] shared-types             (subdomain candidate)
+   [ ] legacy-importer          (isolated — not in dep graph)
    ```
-   Include modules that appear isolated (not yet connected in the dep graph) — these are the ones a pure traversal would miss.
+   Include modules that appear isolated (not yet connected in the dep graph) — these are the ones a pure traversal would miss. The classification column is a guess at this stage; update it as the crawl refines your understanding.
 
 4. From the dependency graph, classify each item provisionally:
    - **No dependents** → likely a domain client (top-level app or service)
