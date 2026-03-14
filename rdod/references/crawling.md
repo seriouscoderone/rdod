@@ -4,23 +4,56 @@ Use this when analyzing an existing codebase to detect domains and fill RDOD tem
 
 ---
 
-## Step 1 — Orient at the top level
+## Step 1 — Build the complete module inventory
 
-1. List all top-level packages/modules/folders (`tree -L 2` or equivalent).
-2. Run the dependency graph tool for the language:
+Before touching any domain, enumerate **everything** in the repo. This becomes the master checklist that guarantees completeness — the crawl is not done until every item on it is accounted for.
+
+1. List all packages/modules at every level:
+   ```
+   tree -L 3 src/         # or the repo root
+   ```
+   For monorepos, also list workspace members:
+   - JS/TS: `cat package.json | grep workspaces` or `ls packages/`
+   - Python: `cat pyproject.toml` or `ls src/`
+   - Rust: `cat Cargo.toml | grep members` or `ls crates/`
+
+2. Produce the full dependency graph:
    - JS/TS: `npm ls --all` or `madge src/`
-   - Python: `pipdeptree` or scan `import` statements
+   - Python: `pipdeptree`
    - Rust: `cargo tree`
-3. Identify the artifact with the most dependents — this is likely a core domain or subdomain kernel. Identify the artifact with no dependents — this is likely a domain client (top-level app or service).
-4. Write down a provisional list of candidate domain names. These are guesses; they will be refined.
+
+3. **Write the master checklist.** List every distinct internal module/package by name. This is the authoritative list. Example:
+   ```
+   MASTER CHECKLIST
+   [ ] social-media-platform
+   [ ] video-editing
+   [ ] format-handling
+   [ ] rendering-engine
+   [ ] color-library (external kernel candidate)
+   [ ] shared-types
+   [ ] legacy-importer     ← isolated, not in dep graph yet
+   ```
+   Include modules that appear isolated (not yet connected in the dep graph) — these are the ones a pure traversal would miss.
+
+4. From the dependency graph, classify each item provisionally:
+   - **No dependents** → likely a domain client (top-level app or service)
+   - **Most dependents** → likely a core domain or kernel candidate
+   - **Middle** → subdomain or adjacent candidate
 
 ---
 
 ## Step 2 — Pick one domain and enter it
 
-Start with a mid-level domain (not the very top, not the very bottom). This gives you both upstream clients and downstream subdomains to trace immediately.
+Apply this priority order to select the first domain:
 
-Create `domains/<name>/domain.yaml` from the blank template. Fill `id`, `name`, `description` now. Leave everything else blank.
+1. **User intent first.** If the user named a specific domain, concern, or area when invoking the skill, start there.
+2. **Most-depended-upon internal module.** The internal module imported by the most other internal modules is the most load-bearing — understanding it early orients everything else.
+3. **Clearest domain naming.** When dependency counts are close, prefer the module whose name and type names read as business/problem concepts (e.g., `order`, `credential`, `timeline`) over utility-flavored names (e.g., `utils`, `helpers`, `common`).
+4. **Ask if still unclear.** If no candidate stands out after applying the above, ask the user which domain to enter first rather than guess.
+
+Aim for a mid-level domain when possible — not the very top (client) and not the very bottom (leaf library). This gives you both upstream clients and downstream subdomains to trace immediately.
+
+Create `domains/<name>/domain.yaml` from the blank template. Fill `id`, `name`, `description` now. Leave everything else blank. Check this domain off the master checklist.
 
 ---
 
@@ -108,21 +141,26 @@ Fill `externals` in `domain.yaml`. For each port (inbound and outbound), fill `p
 
 ---
 
-## Step 8 — Fill code locations and recurse
+## Step 8 — Fill code locations, tick checklist, and recurse
 
 Fill `code_locations` with actual file paths.
 
+Check this domain off the master checklist from Step 1.
+
 Now pick the first stub created in Step 5 and repeat Steps 3–8 for it. That stub is now "the domain." Recurse depth-first until all stubs are filled.
+
+After each domain is completed, scan the master checklist for any unchecked item that has not yet appeared as a stub. If one exists, it was not reachable by traversal from the current entry point — create a stub for it now and recurse into it as a new branch.
 
 ---
 
 ## Step 9 — Coverage check
 
-After all domains are filled:
+After all stubs are filled:
 
-1. **Orphan check:** Any domain with no clients and no subdomains? Either it's a legitimate top-level entry point, or you missed a connection. Investigate.
-2. **Mirror check:** For every entry in domain A's `domain_clients`, domain B should list domain A in its `subdomains` or `adjacents`. Verify both sides match.
-3. **Gap check:** Any required field still empty? Fill or explicitly mark `null` with a note.
+1. **Checklist completion:** Compare the master checklist from Step 1 against all completed `domain.yaml` files. Every item on the checklist must be either (a) a completed domain, (b) a kernel entry in some domain's `kernels`, or (c) explicitly noted as out-of-scope with a reason. Any unchecked item with no accounting → create a stub and recurse.
+2. **Orphan check:** Any domain with no clients and no subdomains? Either it's a legitimate top-level entry point, or you missed a connection. Investigate.
+3. **Mirror check:** For every entry in domain A's `domain_clients`, domain B should list domain A in its `subdomains` or `adjacents`. Verify both sides match.
+4. **Gap check:** Any required field still empty? Fill or explicitly mark `null` with a note.
 
 ---
 
