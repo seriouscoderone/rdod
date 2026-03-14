@@ -1,9 +1,0 @@
-domain_ref: ""
-
-ports:
-  - id: ""
-    type: inbound
-    name: ""
-    contract: ""
-    protocol: ""
-    refs: []
