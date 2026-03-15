@@ -81,8 +81,8 @@
   /* Main content */
   #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
   #graph-wrap { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
-  #cy { height: 65vh; min-height: 300px; flex-shrink: 0; background: #0d1117; border-bottom: 1px solid #0f3460; }
-  #info-panel { flex: 1; overflow-y: auto; padding: 16px 20px; background: #12192b; }
+  #cy { min-height: 100px; flex-shrink: 0; background: #0d1117; }
+  #info-panel { flex: 1; min-height: 60px; overflow-y: auto; padding: 16px 20px; background: #12192b; }
 
   /* Info panel */
   #info-panel .domain-title { font-size: 18px; font-weight: 700; color: #f5c518; margin-bottom: 4px; }
@@ -161,6 +161,27 @@
   .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
   .legend-diamond { width: 10px; height: 10px; transform: rotate(45deg); flex-shrink: 0; }
   .legend-rect { width: 12px; height: 8px; flex-shrink: 0; }
+
+  /* Drag handles */
+  #sidebar-handle {
+    width: 5px;
+    flex-shrink: 0;
+    background: #0f3460;
+    cursor: col-resize;
+    transition: background 0.15s;
+  }
+  #sidebar-handle:hover, #sidebar-handle.active { background: #4a90d9; }
+  #graph-handle {
+    height: 5px;
+    flex-shrink: 0;
+    background: #0f3460;
+    cursor: row-resize;
+    transition: background 0.15s;
+  }
+  #graph-handle:hover, #graph-handle.active { background: #4a90d9; }
+  body.dragging-col { user-select: none; cursor: col-resize !important; }
+  body.dragging-row { user-select: none; cursor: row-resize !important; }
+  body.dragging-col *, body.dragging-row * { cursor: inherit !important; }
 </style>
 </head>
 <body>
@@ -175,6 +196,7 @@
       <input id="search" type="text" placeholder="Search domains…" autocomplete="off">
       <ul id="domain-list"></ul>
     </aside>
+    <div id="sidebar-handle"></div>
     <div id="main">
       <div id="legend">
         <div class="legend-item"><div class="legend-dot" style="background:#4a90d9"></div>Client</div>
@@ -186,6 +208,7 @@
       </div>
       <div id="graph-wrap">
         <div id="cy"></div>
+        <div id="graph-handle"></div>
         <div id="info-panel"><div class="empty-msg">Select a domain to view details.</div></div>
       </div>
     </div>
@@ -742,6 +765,69 @@ function init() {
 }
 
 init();
+
+// ── Drag Handles ──────────────────────────────────────────────────────────────
+
+(function() {
+  const sidebar = document.getElementById('sidebar');
+  const sidebarHandle = document.getElementById('sidebar-handle');
+  const cyEl = document.getElementById('cy');
+  const graphHandle = document.getElementById('graph-handle');
+
+  // Set initial graph height
+  cyEl.style.height = Math.max(300, window.innerHeight * 0.55) + 'px';
+
+  // ── Sidebar resize ──
+  let dragSidebar = false;
+
+  sidebarHandle.addEventListener('mousedown', e => {
+    e.preventDefault();
+    dragSidebar = true;
+    sidebarHandle.classList.add('active');
+    document.body.classList.add('dragging-col');
+  });
+
+  // ── Graph/info resize ──
+  let dragGraph = false;
+  let graphStartY = 0;
+  let graphStartH = 0;
+
+  graphHandle.addEventListener('mousedown', e => {
+    e.preventDefault();
+    dragGraph = true;
+    graphStartY = e.clientY;
+    graphStartH = cyEl.offsetHeight;
+    graphHandle.classList.add('active');
+    document.body.classList.add('dragging-row');
+  });
+
+  // ── Shared move/up ──
+  document.addEventListener('mousemove', e => {
+    if (dragSidebar) {
+      const w = Math.max(120, Math.min(e.clientX, 600));
+      sidebar.style.width = w + 'px';
+    }
+    if (dragGraph) {
+      const newH = Math.max(100, graphStartH + (e.clientY - graphStartY));
+      cyEl.style.height = newH + 'px';
+      if (cy) cy.resize();
+    }
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (dragSidebar) {
+      dragSidebar = false;
+      sidebarHandle.classList.remove('active');
+      document.body.classList.remove('dragging-col');
+    }
+    if (dragGraph) {
+      dragGraph = false;
+      graphHandle.classList.remove('active');
+      document.body.classList.remove('dragging-row');
+      if (cy) cy.resize();
+    }
+  });
+})();
 </script>
 </body>
 </html>
