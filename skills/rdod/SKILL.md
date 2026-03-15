@@ -80,3 +80,15 @@ Follow `references/crawling.md`. Start top-down, detect cohesive modules by nami
 
 **Deciding where code goes:**
 Apply the decision rule. If something "feels like a subdomain but not really" → likely adjacent. If it's infrastructure → external with an interface.
+
+## Generate Context Map (optional)
+
+After completing an RDOD analysis with filled `domain.yaml` files:
+
+```bash
+python skills/rdod/scripts/generate_context_map.py ./domains
+```
+
+Opens as `context-map.html` in any browser — no server needed. Shows each domain's
+neighborhood: clients above, subdomains below, kernels left, adjacents right.
+Click any neighbor to navigate to it. Use the sidebar to jump to any domain directly.
