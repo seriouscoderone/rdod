@@ -10,6 +10,7 @@ All refs use URI-style strings for linkability: `domain://<id>`, `port://<domain
 
 ```yaml
 # domain.yaml
+template_version: "1.0"    # DDD-spec template format version — do not change
 id: "<unique-id>"          # e.g., "video-editing" — globally unique, URI-friendly
 name: "<human-readable>"   # e.g., "Video Editing"
 description: "<what problem space this covers, scope, purpose>"
@@ -92,6 +93,17 @@ Same categories as RDOD — these describe architectural violations, not code sm
 | `modeling-gap` | Missing concept, aggregate, or invariant the domain needs | `introduce-concept:<proposed-name>` |
 | `other:<subtype>` | Non-architectural issue (e.g., `other:security`) | Varies |
 
+### Issue prioritization
+
+Severity alone does not determine fix order. Prioritize by **severity weighted by domain centrality**:
+
+1. **Critical/high in core domains** — fix first. These compromise the load-bearing parts of the system.
+2. **Critical/high in subdomains of core** — fix next. Damage propagates upward.
+3. **Medium in core domains** — before high issues in peripheral domains.
+4. **Any severity in peripheral/leaf domains** — fix last. Blast radius is small.
+
+When the expansion loop surfaces many issues, use this ordering to sequence which domains to revisit first.
+
 ### Recommendation values
 
 | Value | Meaning |
@@ -104,6 +116,27 @@ Same categories as RDOD — these describe architectural violations, not code sm
 | `split-subdomain` | Break an oversized domain or dependency into smaller parts |
 | `merge-hierarchy` | Collapse unnecessary nesting |
 | `introduce-concept:<name>` | Name and define a missing domain concept |
+
+---
+
+## issues.yaml — Overflow for large issue lists
+
+When a domain's `issues` list exceeds ~10 entries, move them to a separate `issues.yaml` file and add `issues_ref: "issues://<domain-id>"` to `domain.yaml`. This keeps the main template readable.
+
+```yaml
+# issues.yaml
+domain_ref: "<domain-id>"
+
+issues:
+  - ref: "<affected-ref>"
+    category: "<see categories above>"
+    severity: "<low|medium|high|critical>"
+    description: "<what's wrong>"
+    rationale: "<why this is a concern — reasoning, not code evidence>"
+    recommendation: "<see recommendations above>"
+```
+
+The format is identical to the `issues` array in `domain.yaml` — just extracted into its own file. Note: uses `rationale` (not `evidence`) since ddd-spec operates on designs, not code.
 
 ---
 
@@ -187,6 +220,8 @@ domains/
 ```
 
 Nesting folder structure mirrors the subdomain hierarchy. Adjacent domains are siblings, not nested.
+
+**Folder-hierarchy consistency rule:** If domain B is listed in domain A's `subdomains`, then B's folder should be nested under A's folder (e.g., `domains/A/B/domain.yaml`). If B's folder is a sibling of A instead, either: (a) the folder is misplaced — move it, or (b) the relationship is actually adjacent, not subdomain — reclassify. Tooling can validate this by checking that every subdomain ref's `id` starts with the parent domain's `id` as a prefix (e.g., subdomain `video-editing/format-handling` under parent `video-editing`).
 
 ## Compatibility with RDOD
 
