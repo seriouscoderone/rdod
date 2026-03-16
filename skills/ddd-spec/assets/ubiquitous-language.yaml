@@ -1,0 +1,23 @@
+# Expanded language detail for a domain.
+# domain.yaml's ubiquitous_language section carries the brief summary (term + definition + invariants).
+# This file is the deep-dive: synonyms, examples, related terms, events, and rules.
+# Both files should stay in sync — every term here should appear in domain.yaml and vice versa.
+domain_ref: ""
+
+terms:
+  - term: ""
+    synonyms: []
+    definition: ""
+    invariants: []       # rules that must always hold for this term, e.g. "Timeline must have >= 1 clip"
+    examples: []         # code snippet or scenario showing this term in use
+    related_terms: []    # other terms in this domain that this term connects to
+
+# Domain events emitted by this domain
+events: []
+# - name: ""            # e.g., "ClipAdded"
+#   payload: ""         # field: type descriptions
+#   triggers: ""        # what causes this event
+
+# Business rules and invariants that span multiple terms
+rules: []
+# - ""

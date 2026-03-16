@@ -1,0 +1,67 @@
+id: ""
+name: ""
+description: ""
+version: "0.0.0-stub"
+
+# Where this domain's specification came from
+source_material: []
+# - type: ""                # user-input | document | domain-expert | llm-inferred
+#   reference: ""           # description or document name
+
+# Core language — brief here; expand in ubiquitous-language.yaml
+ubiquitous_language:
+  - term: ""
+    definition: ""
+    invariants: []
+
+# Upstream: who uses me?
+domain_clients: []
+# - ref: "domain://<client-id>"
+#   relationship: ""
+#   via_port: "port://<this-domain>/inbound/<port-name>"
+
+# Downstream: what do I depend on / compose?
+subdomains: []
+# - ref: "domain://<subdomain-id>"
+#   relationship: ""
+#   via_port: "port://<subdomain-id>/inbound/<port-name>"
+
+# Off-the-shelf, adopted natively (no wrapping)
+kernels: []
+# - ref: "kernel://<id>"
+#   source: ""              # npm:pkg@ver | cargo:crate | pip:pkg
+#   relationship: ""        # why adopted natively
+
+# Lateral: peer collaborators or cross-cutting concerns
+adjacents: []
+# - ref: "domain://<adjacent-id>"
+#   relationship: ""        # context-map pattern: Partnership | ACL | Conformist | etc.
+#   via_port: "port://<adjacent-id>/inbound/<port-name>"
+#   is_cross_cutting: false
+
+# Infra/IO: encapsulated external concerns
+externals: []
+# - name: ""                # e.g., "File Persistence"
+#   abstraction: ""         # Repository | Service | Adapter
+#   ref: "port://<this-domain>/outbound/<port-name>"
+#   implementation_notes: ""
+
+# Implementation guidance — hints for future implementors (optional)
+implementation_guidance:
+  suggested_type: ""        # module | package | service | app | middleware
+  language_affinity: ""     # "any" | "typescript" | "rust" | etc.
+  notes: ""
+
+# Design issues: architectural concerns identified during specification
+issues: []
+# - ref: ""                 # what is being called out, e.g. "kernel://color-library"
+#   category: ""            # kernel-pollution | missing-port | language-inconsistency |
+#                           # wrong-classification | inverted-dependency |
+#                           # hierarchy-imbalance | modeling-gap | other:<subtype>
+#   severity: ""            # low | medium | high | critical
+#   description: ""         # what's wrong and how it compromises this domain's structure
+#   rationale: ""           # why this is a concern — reasoning, not code evidence
+#   recommendation: ""      # replace | wrap-with-acl | add-port | refactor-port |
+#                           # reclassify | split-subdomain | introduce-concept:<name>
+
+tags: []
