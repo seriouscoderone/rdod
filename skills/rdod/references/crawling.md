@@ -35,6 +35,11 @@ Before touching any domain, enumerate **everything** in the repo. This becomes t
    ```
    Include modules that appear isolated (not yet connected in the dep graph) — these are the ones a pure traversal would miss. The classification column is a guess at this stage; update it as the crawl refines your understanding.
 
+   Two additional classifications beyond the standard domain types:
+
+   - **`out-of-scope: <reason>`** — For items that are clearly not domain concerns: dead code (no imports in either direction AND no recognizable domain concepts), build tooling, test utilities, generated code. Do not create `domain.yaml` files for these — just note them on the checklist with a reason so they're accounted for.
+   - **`decomposition-target`** — For modules named `utils`, `common`, `shared`, `helpers`, or similar grab-bag packages. These are treated like any other module during the crawl, but they almost always lack cohesion. When you enter one in Steps 3-8, expect to find mixed concerns that should be distributed across multiple domains. Log `hierarchy-imbalance` with `recommendation: split-subdomain` and note *what* each piece should become (subdomain, kernel, adjacent, external, or dead code). A single split can produce multiple outputs of different types.
+
 4. From the dependency graph, classify each item provisionally:
    - **No dependents** → likely a domain client (top-level app or service)
    - **Most dependents** → likely a core domain or kernel candidate
@@ -47,8 +52,8 @@ Before touching any domain, enumerate **everything** in the repo. This becomes t
 Apply this priority order to select the first domain:
 
 1. **User intent first.** If the user named a specific domain, concern, or area when invoking the skill, start there.
-2. **Most-depended-upon internal module.** The internal module imported by the most other internal modules is the most load-bearing — understanding it early orients everything else.
-3. **Clearest domain naming.** When dependency counts are close, prefer the module whose name and type names read as business/problem concepts (e.g., `order`, `credential`, `timeline`) over utility-flavored names (e.g., `utils`, `helpers`, `common`).
+2. **Most-depended-upon internal module.** The internal module imported by the most other internal modules is the most load-bearing — understanding it early orients everything else. **Skip modules with utility-flavored names** (`utils`, `common`, `shared`, `helpers`, `types`) — high import count does not make a grab-bag a good entry point. These are decomposition targets, not domain entry points.
+3. **Clearest domain naming.** When dependency counts are close, prefer the module whose name and type names read as business/problem concepts (e.g., `order`, `credential`, `timeline`).
 4. **Ask if still unclear.** If no candidate stands out after applying the above, ask the user which domain to enter first rather than guess.
 
 Aim for a mid-level domain when possible — not the very top (client) and not the very bottom (leaf library). This gives you both upstream clients and downstream subdomains to trace immediately.
@@ -87,6 +92,12 @@ For each caller:
 - Is it a sibling at roughly the same level using this as a utility? → Likely adjacent (come back to this in Step 6).
 
 **Issue cue:** If a caller imports internal implementation types rather than going through a port/interface, log `inverted-dependency` or `missing-port` against this domain.
+
+**Circular dependency detected (A imports B, B imports A):** Do not ignore this or defer it to Step 11. Resolve it now — the rest of the crawl builds on these classifications. Three possible resolutions:
+
+1. **Missing abstraction (most common).** Both domains depend on a concept that should be extracted as a shared port or interface. This is a Dependency Inversion Principle violation. Log `inverted-dependency` against both, with `recommendation: add-port` or `refactor-port`. Identify what the shared abstraction should be.
+2. **Actually one domain.** If both modules share significant ubiquitous language and neither can be understood without the other, they may be a single domain that was artificially split. Log `hierarchy-imbalance` with `recommendation: merge-hierarchy`.
+3. **Adjacent with event/callback pattern.** One direction is a direct call, the other is a callback, listener, or event subscription. Classify as adjacents, not client/subdomain. The event direction is not a true dependency — it's a notification.
 
 ---
 
@@ -151,6 +162,8 @@ For each:
 
 Fill `externals` in `domain.yaml`. For each port (inbound and outbound), fill `ports.yaml`.
 
+**Domain logic vs. implementation:** The domain owns the *interface* (e.g., "a repository for storing clips"). The concrete implementation (e.g., "PostgreSQL with table `clips`") lives outside the domain and is noted in `implementation_notes` on the external entry. When filling externals, name the abstraction the domain needs, not the technology behind it. The technology is evidence for the implementation notes, not the domain model.
+
 **Issue cues:**
 - Raw infrastructure calls (DB queries, HTTP requests, file I/O) found directly in domain logic with no interface → log `missing-port`.
 - No inbound port exists — clients call internal domain types directly → log `missing-port` (inbound).
@@ -164,9 +177,17 @@ Fill `code_locations` with actual file paths.
 
 Check this domain off the master checklist from Step 1.
 
-Now pick the first stub created in Step 5 and repeat Steps 3–8 for it. That stub is now "the domain." Recurse depth-first until all stubs are filled.
+Now pick the next stub to recurse into. Priority order:
+1. **Most-connected subdomain** — the stub referenced by the most other candidates or completed domains. Understanding it early informs later classifications.
+2. **User's choice** — if the user has a preference, follow it.
+3. **Dependency order** — a stub that other stubs depend on should be filled before its dependents.
+4. **Alphabetical** — as a tiebreaker.
+
+Repeat Steps 3–8 for the chosen stub. That stub is now "the domain." Recurse depth-first until all stubs are filled.
 
 After each domain is completed, scan the master checklist for any unchecked item that has not yet appeared as a stub. If one exists, it was not reachable by traversal from the current entry point — create a stub for it now and recurse into it as a new branch.
+
+**Correcting the model mid-crawl:** If you realize a domain boundary is wrong (e.g., you classified something as a subdomain but it's really an adjacent, or two domains should be one), correct the `domain.yaml` files immediately. Don't build more analysis on a known-wrong foundation. This corrects the *analyst's model*, not the code. If the *code's structure* is wrong (e.g., a monolith that should be split), that's an issue to log (`hierarchy-imbalance`), not a model correction — the model should reflect what the code IS, with issues noting what it SHOULD BE.
 
 ---
 
@@ -174,8 +195,8 @@ After each domain is completed, scan the master checklist for any unchecked item
 
 After all stubs are filled:
 
-1. **Checklist completion:** Compare the master checklist from Step 1 against all completed `domain.yaml` files. Every item on the checklist must be either (a) a completed domain, (b) a kernel entry in some domain's `kernels`, or (c) explicitly noted as out-of-scope with a reason. Any unchecked item with no accounting → create a stub and recurse.
-2. **Orphan check:** Any domain with no clients and no subdomains? Either it's a legitimate top-level entry point, or you missed a connection. Investigate.
+1. **Checklist completion:** Compare the master checklist from Step 1 against all completed `domain.yaml` files. Every item on the checklist must be either (a) a completed domain, (b) a kernel entry in some domain's `kernels`, (c) explicitly marked `out-of-scope: <reason>` (dead code, build tooling, test utilities, generated code), or (d) distributed across multiple domains via a `split-subdomain` decomposition. Any unchecked item with no accounting → create a stub and recurse.
+2. **Orphan check:** Any domain with no clients and no subdomains? Either it's a legitimate top-level entry point (note it as such), or a relationship was missed. A domain reachable only by `out-of-scope` items is suspicious — investigate whether those items were correctly excluded.
 3. **Mirror check:** For every entry in domain A's `domain_clients`, domain B should list domain A in its `subdomains` or `adjacents`. Verify both sides match.
 4. **Gap check:** Any required field still empty? Fill or explicitly mark `null` with a note.
 
@@ -209,6 +230,19 @@ graph TD
   video-editing -. adjacent .-> audio-processing
   classDef kernel fill:#f9f,stroke:#333
 ```
+
+---
+
+## Termination Criteria
+
+The crawl is complete when ALL of the following are true:
+
+1. **Every item on the master checklist is accounted for** — either a completed `domain.yaml`, a kernel entry in some domain's `kernels`, or explicitly marked `out-of-scope: <reason>`.
+2. **No unfilled stubs remain** — every `domain.yaml` has version ≥ 0.1.0 (not `0.0.0-stub`).
+3. **The frontier is all leaves** — every domain's subdomains are either completed domains, kernels, or externals. No unvisited internal domains remain to recurse into.
+4. **A full pass of Steps 9–11 produces no new work** — no new stubs to create, no broken refs, no missing mirrors. The verification steps are clean.
+
+If Step 9 or 10 surfaces new stubs or relationships, those must be filled before re-running verification. The crawl converges when expansion reaches the leaves of the domain tree (kernels and externals) and verification passes clean.
 
 ---
 
