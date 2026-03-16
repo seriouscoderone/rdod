@@ -1,0 +1,14 @@
+# RDOD Master Checklist
+# Generated during Step 1 of crawling.md. Updated throughout the crawl.
+# Every item must be accounted for before the crawl is complete.
+
+repo: ""                     # repository name or path
+generated: ""                # date of initial inventory
+
+modules:
+  - name: ""
+    classification: ""       # client | core | subdomain | adjacent | kernel | external |
+                             # decomposition-target | out-of-scope:<reason>
+    status: pending          # pending | in-progress | complete | stub
+    domain_ref: ""           # domain://<id> once domain.yaml is created
+    notes: ""

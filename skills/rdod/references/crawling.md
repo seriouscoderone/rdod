@@ -22,7 +22,7 @@ Before touching any domain, enumerate **everything** in the repo. This becomes t
    - Python: `pipdeptree`
    - Rust: `cargo tree`
 
-3. **Write the master checklist.** List every distinct internal module/package with its provisional classification from the dependency graph. This is the authoritative list. Example:
+3. **Write the master checklist.** List every distinct internal module/package with its provisional classification from the dependency graph. This is the authoritative list. Use `assets/checklist.yaml` as the template, or a markdown checklist — either works. Example:
    ```
    MASTER CHECKLIST
    [ ] social-media-platform    (client — no dependents)

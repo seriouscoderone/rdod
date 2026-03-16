@@ -1,0 +1,14 @@
+# Overflow file for domains with many issues (>10).
+# Add issues_ref: "issues://<domain-id>" to domain.yaml when using this file.
+domain_ref: ""
+
+issues: []
+# - ref: ""                 # what is being called out, e.g. "kernel://color-library"
+#   category: ""            # kernel-pollution | missing-port | language-inconsistency |
+#                           # wrong-classification | inverted-dependency |
+#                           # hierarchy-imbalance | modeling-gap | other:<subtype>
+#   severity: ""            # low | medium | high | critical
+#   description: ""         # what's wrong and how it compromises this domain's structure
+#   evidence: ""            # concrete proof: file path, method name, snippet, test failure
+#   recommendation: ""      # replace | wrap-with-acl | add-port | refactor-port |
+#                           # reclassify | split-subdomain | introduce-concept:<name>

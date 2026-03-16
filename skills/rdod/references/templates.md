@@ -10,6 +10,7 @@ All refs use URI-style strings for linkability: `domain://<id>`, `port://<domain
 
 ```yaml
 # domain.yaml
+template_version: "1.0"    # RDOD template format version — do not change
 id: "<unique-id>"          # e.g., "video-editing" — globally unique, URI-friendly
 name: "<human-readable>"   # e.g., "Video Editing"
 description: "<what problem space this covers, scope, purpose>"
@@ -92,6 +93,17 @@ Use these to diagnose how a violation compromises domain structure, hierarchy, o
 | `modeling-gap` | Missing concept, aggregate, or invariant that the domain needs but hasn't defined | `introduce-concept:<proposed-name>` |
 | `other:<subtype>` | Non-architectural issue (e.g., `other:security`, `other:performance`) | Varies — tie back to RDOD impact where possible |
 
+### Issue prioritization
+
+Severity alone does not determine fix order. Prioritize by **severity weighted by domain centrality**:
+
+1. **Critical/high in core domains** — fix first. These compromise the load-bearing parts of the system.
+2. **Critical/high in subdomains of core** — fix next. Damage propagates upward.
+3. **Medium in core domains** — before high issues in peripheral domains.
+4. **Any severity in peripheral/leaf domains** — fix last. Blast radius is small.
+
+When a crawl surfaces many issues, use this ordering to sequence remediation. An issue's `ref` field identifies which domain it affects; check that domain's position in the hierarchy to determine centrality.
+
 ### Recommendation values
 
 | Value | Meaning |
@@ -104,6 +116,27 @@ Use these to diagnose how a violation compromises domain structure, hierarchy, o
 | `split-subdomain` | Break an oversized domain or dependency into smaller parts |
 | `merge-hierarchy` | Collapse unnecessary nesting |
 | `introduce-concept:<name>` | Name and define a missing domain concept, e.g. `introduce-concept:RenderPipeline` |
+
+---
+
+## issues.yaml — Overflow for large issue lists
+
+When a domain's `issues` list exceeds ~10 entries, move them to a separate `issues.yaml` file and add `issues_ref: "issues://<domain-id>"` to `domain.yaml`. This keeps the main template readable.
+
+```yaml
+# issues.yaml
+domain_ref: "<domain-id>"
+
+issues:
+  - ref: "<affected-ref>"
+    category: "<see categories below>"
+    severity: "<low|medium|high|critical>"
+    description: "<what's wrong>"
+    evidence: "<file path, method name, snippet>"
+    recommendation: "<see recommendations below>"
+```
+
+The format is identical to the `issues` array in `domain.yaml` — just extracted into its own file.
 
 ---
 
@@ -159,6 +192,17 @@ ports:
 
 ---
 
+## Multi-Repo Support
+
+When a system spans multiple repositories (e.g., microservices), the domain graph crosses repo boundaries. Handle this as follows:
+
+- **One `domains/` directory spans all repos.** Maintain a single top-level `domains/` directory (in its own repo or a designated repo) that contains domain.yaml files for the entire system. Each domain's `code_locations` points to paths in specific repos (prefix with the repo name: `<repo>/src/path`).
+- **Cross-repo refs work unchanged.** `domain://` and `port://` refs are globally unique by `id`, not by file path. A domain in repo A can reference a domain in repo B as long as both have entries in the shared `domains/` directory.
+- **Master checklist spans all repos.** During crawling, build one checklist covering all repos. Note which repo each module comes from.
+- **Validate cross-repo refs explicitly.** Since imports can't be traced across repo boundaries with a single `grep`, document cross-repo dependencies in the `relationship` field and verify them manually or via API contracts.
+
+For single-repo systems, ignore this section — everything lives under one `domains/` directory by default.
+
 ## Reference Integrity Rules (for tooling)
 
 - Every `domain://` ref must resolve to an `id:` in another `domain.yaml`
@@ -186,3 +230,5 @@ domains/
 ```
 
 Nesting folder structure mirrors the subdomain hierarchy. Adjacent domains are siblings, not nested.
+
+**Folder-hierarchy consistency rule:** If domain B is listed in domain A's `subdomains`, then B's folder should be nested under A's folder (e.g., `domains/A/B/domain.yaml`). If B's folder is a sibling of A instead, either: (a) the folder is misplaced — move it, or (b) the relationship is actually adjacent, not subdomain — reclassify. Tooling can validate this by checking that every subdomain ref's `id` starts with the parent domain's `id` as a prefix (e.g., subdomain `video-editing/format-handling` under parent `video-editing`).

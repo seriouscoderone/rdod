@@ -15,6 +15,16 @@ description: "Recursive Domain-Oriented Design (RDOD) — a DDD-inspired methodo
 
 This enables recursive navigation: orient identically at every depth of the hierarchy.
 
+## When RDOD Is Not Appropriate
+
+RDOD assumes the thing being analyzed has **domain concepts** — terms, invariants, and relationships that form a model. It is not useful for:
+
+- **Pure utility libraries** with no domain semantics (string manipulation, math helpers, left-pad). If there's no ubiquitous language to extract, RDOD adds overhead without insight.
+- **Build tooling and CI/CD configuration** — these are infrastructure, not domains.
+- **Generated code** — the generator is the domain, not its output.
+
+If a codebase module has no recognizable domain concepts after a brief inspection, mark it `out-of-scope` on the master checklist and move on. RDOD is for code that models a problem space, not code that merely executes mechanics.
+
 ## Orientation Questions (enter any domain, ask these)
 
 1. **Language** — What are the core terms, rules, and invariants here?
