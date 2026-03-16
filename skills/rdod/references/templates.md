@@ -65,7 +65,12 @@ issues:
 # Code traceability
 code_locations:
   - path: "<repo-path>"              # e.g., "src/video-editing/core"
-    type: "<pure-domain-lib | service | middleware | app>"
+    type: "<module | package | service | app | middleware>"
+    # module    — directory/namespace within a larger codebase
+    # package   — standalone publishable library (crate, npm package, pip package)
+    # service   — runs as its own process/deployment
+    # app       — end-user application or CLI
+    # middleware — intermediary layer (HTTP middleware, message handler)
 
 tags: []
 ```
@@ -104,6 +109,8 @@ Use these to diagnose how a violation compromises domain structure, hierarchy, o
 
 ## ubiquitous-language.yaml — Deep language detail
 
+This file expands the brief `ubiquitous_language` entries in `domain.yaml`. Both files should stay in sync — every term here should appear in `domain.yaml` and vice versa. The `domain.yaml` carries the summary (term + definition + invariants); this file adds synonyms, examples, related terms, events, and cross-term rules.
+
 ```yaml
 # ubiquitous-language.yaml
 domain_ref: "<domain-id>"
@@ -112,6 +119,7 @@ terms:
   - term: "<term>"
     synonyms: []
     definition: "<precise definition>"
+    invariants: ["<rule that must always hold for this term>"]
     examples: ["<code snippet or scenario>"]
     related_terms: ["<other term in this domain>"]
 
@@ -120,8 +128,9 @@ events:                     # Domain events emitted by this domain
     payload: "<field: type descriptions>"
     triggers: "<what causes this event>"
 
+# Business rules and invariants that span multiple terms
 rules:
-  - "<business rule or invariant>"
+  - "<cross-term business rule or invariant>"
 ```
 
 ---
@@ -152,8 +161,10 @@ ports:
 
 ## Reference Integrity Rules (for tooling)
 
-- Every `ref:` must resolve to an `id:` in another `domain.yaml`
-- Every `via_port:` must resolve to a port `id:` in the referenced domain's `ports.yaml`
+- Every `domain://` ref must resolve to an `id:` in another `domain.yaml`
+- Every `port://` ref must resolve to a port `id:` in the referenced domain's `ports.yaml`
+- `kernel://` refs are **not** required to resolve to a `domain.yaml` (kernels are external libs). Validate kernels by checking that `source:` matches an installed dependency (e.g., `npm ls <pkg>`, `cargo tree -p <crate>`, `pip show <pkg>`)
+- Every `via_port:` must resolve to a port `id:` in the referenced domain's `ports.yaml`. For adjacents that communicate via events (no direct port call), omit `via_port` and document the event contract in the `relationship` field instead
 - No cycles in subdomain graph (adjacents may be mutual)
 - Each domain's `domain_clients` must be the mirror of some other domain's `subdomains` or `adjacents`
 

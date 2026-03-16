@@ -26,24 +26,28 @@ This enables recursive navigation: orient identically at every depth of the hier
 
 ## The 5 Neighbor Types
 
-| Type | Direction | Nature | Example |
-|------|-----------|--------|---------|
+| Type | Relation | Nature | Example |
+|------|----------|--------|---------|
 | **Client** | Upstream | Depends on this domain | `SocialMediaPlatform` using `VideoEditing` |
-| **Subdomain** | Downstream | Custom/composed child domain | `VideoFormatHandling` inside `VideoEditing` |
-| **Kernel** | Downstream | Adopted off-the-shelf lib, used natively | `ColorLibrary` types used directly, no wrapping |
-| **Adjacent** | Lateral | Peer collaborator or cross-cutting concern | `AudioProcessing` alongside `VideoEditing` |
-| **External** | Plugged in | Infra/IO, encapsulated behind an interface | `VideoRepository` for persistence |
+| **Subdomain** | Downstream (owned) | Child domain this domain drives and composes | `VideoFormatHandling` inside `VideoEditing` |
+| **Kernel** | Adopted | External lib whose types become this domain's types — no ownership, no wrapping | `ColorLibrary` types used directly in `Effect` fields |
+| **Adjacent** | Lateral (peer) | Collaborator at the same level — neither domain controls the other | `AudioProcessing` alongside `VideoEditing` |
+| **External** | Encapsulated | Infra/IO concern hidden behind a domain-owned interface | `VideoRepository` for persistence |
 
 ### Decision Rule — where does it belong?
 
 ```
 Does it contribute to this domain's core model/language?
-  ├─ Yes + built/composed internally → Subdomain
+  ├─ Yes + built/composed internally →
+  │     Does this domain control/drive it? → Subdomain
+  │     Do they collaborate as equals? → Adjacent
   ├─ Yes + external lib → Kernel or Subdomain (see below)
   └─ No →
-       Is it a peer / cross-cutting collaborator? → Adjacent
+       Does it collaborate laterally with this domain? → Adjacent
        Is it infra, IO, or external service? → External (encapsulate via interface)
 ```
+
+**Subdomain vs. Adjacent — the control test:** Can this domain tell the dependency what to do? If yes — this domain drives it, owns its evolution, and composes its output — it's a **subdomain**. If the relationship is a negotiation between equals, neither side controls the other's model, and changes require coordination — it's an **adjacent**. When uncertain, look at who would break if the relationship changed: if only this domain breaks → subdomain. If both break → adjacent.
 
 **Kernel vs. Subdomain for external libs** — the key question is: *do its types appear unchanged in your domain's public surface?*
 
@@ -58,7 +62,29 @@ If you find yourself writing `MyDomainThing(externalLib.TheirType)` → Kernel. 
 - **Outbound port** — interface this domain uses for subdomains or externals (Repository, Adapter)
 - **Adapters** — concrete implementations of outbound ports (live outside the domain core)
 
-Adjacent domains connect via agreed-upon contracts: method interfaces, event schemas, or published language. Apply DDD context-map patterns as needed: ACL (protect your model), Conformist, Shared Kernel, Open Host Service + Published Language, Partnership.
+Adjacent domains connect via agreed-upon contracts. Choose the context-map pattern that best describes the relationship:
+
+| Pattern | When to use |
+|---------|-------------|
+| **Partnership** | Two domains cooperate closely with joint planning — mutual dependency, both teams align on changes |
+| **Shared Kernel** | Two domains share a small, carefully managed subset of the model (e.g., a common types library) — tight coupling, but controlled and explicit |
+| **Customer-Supplier** | Downstream domain depends on upstream; upstream plans features to serve downstream's needs — clear power direction |
+| **Conformist** | Downstream adopts upstream's model as-is with no negotiation — avoids translation overhead, accepts coupling |
+| **ACL (Anti-Corruption Layer)** | Downstream protects its own model by translating incoming data through a dedicated boundary layer — prevents model pollution |
+| **OHS + Published Language** | Upstream exposes a standardized service/API with a published schema so multiple downstreams can consume it independently |
+| **Separate Ways** | Domains ignore each other completely — no integration, by deliberate choice |
+
+If no pattern fits, the boundary may be unclear — investigate whether the relationship is actually subdomain (one side controls the other) rather than adjacent.
+
+## Cross-Cutting Concerns vs. Accidental Coupling
+
+RDOD uses "cross-cutting" in one specific sense. These two situations look similar but are fundamentally different:
+
+- **Cross-cutting adjacent** (`is_cross_cutting: true`): A domain that legitimately spans many other domains by design — auth, logging, observability, error reporting. These are intentional, healthy, and classified as adjacents with the cross-cutting flag. They have their own ubiquitous language and clear boundaries.
+
+- **Accidental coupling** (an issue, not a classification): Code from one domain appearing inside another domain's internals when it shouldn't — e.g., a `User` type from the identity domain leaking into the billing domain with no ACL. This is unintentional, a smell, and caught by issue categories like `inverted-dependency`, `kernel-pollution`, or `language-inconsistency`.
+
+The test: did someone *decide* this concern should span domains (→ cross-cutting adjacent), or did it *drift* there through convenience (→ accidental coupling, log an issue)?
 
 ## Templates
 
@@ -79,7 +105,7 @@ Use orientation questions + decision rule to place each concern. Start with the 
 Follow `references/crawling.md`. Start top-down, detect cohesive modules by naming/dependency patterns, assign provisional domain IDs, recurse depth-first into each.
 
 **Deciding where code goes:**
-Apply the decision rule. If something "feels like a subdomain but not really" → likely adjacent. If it's infrastructure → external with an interface.
+Apply the decision rule. The hardest call is subdomain vs. adjacent — use the control test: does this domain drive it (subdomain), or do they negotiate as peers (adjacent)? If it's infrastructure with no domain concepts → external with an interface.
 
 ## Generate Context Map (optional)
 

@@ -1,9 +1,18 @@
 domain_ref: ""
 
 ports:
-  - id: ""
+  # Inbound — driving port: what clients call to use this domain
+  - id: ""               # e.g., "port://video-editing/inbound/editing-api"
     type: inbound
     name: ""
-    contract: ""
-    protocol: ""
-    refs: []
+    contract: ""         # method/event signature
+    protocol: ""         # method-call | REST | GraphQL | events | message-queue
+    refs: []             # who uses this port, e.g. ["domain://social-media-platform"]
+
+  # Outbound — driven port: what this domain calls out to
+  # - id: ""             # e.g., "port://video-editing/outbound/clip-store"
+  #   type: outbound
+  #   name: ""
+  #   contract: ""       # interface signature
+  #   protocol: ""       # method-call | events
+  #   refs: []           # what this port reaches, e.g. ["domain://format-handling"]
