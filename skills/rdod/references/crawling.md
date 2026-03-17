@@ -58,7 +58,7 @@ Apply this priority order to select the first domain:
 
 Aim for a mid-level domain when possible — not the very top (client) and not the very bottom (leaf library). This gives you both upstream clients and downstream subdomains to trace immediately.
 
-Create `domains/<name>/domain.yaml` from the blank template. Fill `id`, `name`, `description` now. Leave everything else blank. Check this domain off the master checklist.
+Create `rdod/analysis/domains/<name>/domain.yaml` from the blank template. Fill `id`, `name`, `description` now. Leave everything else blank. Check this domain off the master checklist.
 
 ---
 

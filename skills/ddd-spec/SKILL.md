@@ -90,6 +90,25 @@ RDOD uses "cross-cutting" in one specific sense. These two situations look simil
 
 The test: did someone *decide* this concern should span domains (→ cross-cutting adjacent), or did it *drift* there through convenience (→ accidental coupling, log an issue)?
 
+## Output Directory
+
+ddd-spec writes all domain files to **`rdod/spec/domains/`** by default. This keeps spec output separate from any RDOD analysis of existing code, which writes to `rdod/analysis/domains/`.
+
+```
+rdod/
+  analysis/          ← RDOD output (what the code IS)
+    domains/
+      ...
+  spec/              ← ddd-spec output (what it SHOULD be)
+    domains/
+      <domain-id>/
+        domain.yaml
+        ubiquitous-language.yaml
+        ports.yaml
+```
+
+Both directories use the same domain.yaml format. Running both skills on the same project and comparing the two directories gives you the delta between current architecture and ideal architecture — the refactoring roadmap.
+
 ## Templates
 
 See `references/templates.md` for fillable YAML templates (`domain.yaml`, `ubiquitous-language.yaml`, `ports.yaml`) with full field descriptions.
@@ -109,7 +128,7 @@ User provides a paragraph or a few sentences describing the system. Start the ex
 User provides or references documents (whitepapers, RFCs, API specs, requirements docs). Read them, then start expansion.md at Step 1, Mode B (the documents serve as the seed's first expansion).
 
 **Continue an existing spec:**
-User has an existing `domains/` directory with `domain.yaml` files. Start expansion.md at Step 1, Mode D (reconstruct candidate list from existing files, then expand).
+User has an existing `rdod/spec/domains/` directory with `domain.yaml` files. Start expansion.md at Step 1, Mode D (reconstruct candidate list from existing files, then expand).
 
 **Deciding where a concept goes:**
 Apply the decision rule. The hardest call is subdomain vs. adjacent — use the control test: does this domain drive it (subdomain), or do they negotiate as peers (adjacent)? If it's infrastructure with no domain concepts → external with an interface.
@@ -119,7 +138,7 @@ Apply the decision rule. The hardest call is subdomain vs. adjacent — use the 
 After any expansion session with filled `domain.yaml` files:
 
 ```bash
-python skills/ddd-spec/scripts/generate_context_map.py ./domains
+python skills/ddd-spec/scripts/generate_context_map.py rdod/spec/domains
 ```
 
 Opens as `context-map.html` in any browser — no server needed. Shows each domain's neighborhood: clients above, subdomains below, kernels left, adjacents right. Click any neighbor to navigate to it. Use the sidebar to jump to any domain directly.

@@ -1,6 +1,6 @@
 # DDD Spec YAML Templates
 
-Three templates per domain. Store as files in `domains/<domain-name>/`.
+Three templates per domain. Store as files in `rdod/spec/domains/<domain-name>/`.
 
 All refs use URI-style strings for linkability: `domain://<id>`, `port://<domain-id>/<direction>/<name>`.
 
@@ -204,7 +204,7 @@ ports:
 ## Folder Convention
 
 ```
-domains/
+rdod/spec/domains/
   README.md                     # Overview, domain map, status table
   video-editing/
     domain.yaml

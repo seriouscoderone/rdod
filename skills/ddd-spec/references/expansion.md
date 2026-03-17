@@ -18,7 +18,7 @@ Determine the starting point. Exactly one mode applies:
 
 **Mode C — Blank slate.** Ask the user: "What system or problem space should we model? Describe it in a few sentences." Their answer is the seed.
 
-**Mode D — Continue existing spec.** User has a `domains/` directory with existing `domain.yaml` files. Read all files, reconstruct the candidate list (see "Handling Continue Mode" below), and skip to Step 6.
+**Mode D — Continue existing spec.** User has a `rdod/spec/domains/` directory with existing `domain.yaml` files. Read all files, reconstruct the candidate list (see "Handling Continue Mode" below), and skip to Step 6.
 
 Write the seed down verbatim. Every later step refers back to it.
 
@@ -84,7 +84,7 @@ Apply this priority order:
 
 Aim for the core domain first — not a leaf and not a top-level client. This gives you both upstream clients and downstream subdomains to trace immediately.
 
-Create `domains/<name>/domain.yaml` from the blank template. Fill `id`, `name`, `description`. Set `version: "0.1.0"`. Record `source_material` entries with where this domain's information came from.
+Create `rdod/spec/domains/<name>/domain.yaml` from the blank template. Fill `id`, `name`, `description`. Set `version: "0.1.0"`. Record `source_material` entries with where this domain's information came from.
 
 ---
 
@@ -248,7 +248,7 @@ Present the complete spec to the user:
      classDef kernel fill:#f9f,stroke:#333
    ```
 
-3. **Generate `domains/README.md`** as the entry point:
+3. **Generate `rdod/spec/domains/README.md`** as the entry point:
    ```markdown
    # Domain Specification
 
@@ -276,7 +276,7 @@ Present the complete spec to the user:
 
 5. **Context map.** Offer to generate the interactive HTML visualization:
    ```bash
-   python skills/ddd-spec/scripts/generate_context_map.py ./domains
+   python skills/ddd-spec/scripts/generate_context_map.py rdod/spec/domains
    ```
 
 Ask: "Is this spec complete enough to implement against? What should we refine?"
@@ -285,7 +285,7 @@ Ask: "Is this spec complete enough to implement against? What should we refine?"
 
 ## Handling Continue Mode
 
-When a `domains/` directory already exists with `domain.yaml` files:
+When a `rdod/spec/domains/` directory already exists with `domain.yaml` files:
 
 1. Read all `domain.yaml` files
 2. Classify each as:

@@ -96,6 +96,25 @@ RDOD uses "cross-cutting" in one specific sense. These two situations look simil
 
 The test: did someone *decide* this concern should span domains (→ cross-cutting adjacent), or did it *drift* there through convenience (→ accidental coupling, log an issue)?
 
+## Output Directory
+
+RDOD writes all domain files to **`rdod/analysis/domains/`** by default. This keeps RDOD's analysis of existing code separate from any ddd-spec design work, which writes to `rdod/spec/domains/`.
+
+```
+rdod/
+  analysis/          ← RDOD output (what the code IS)
+    domains/
+      <domain-id>/
+        domain.yaml
+        ubiquitous-language.yaml
+        ports.yaml
+  spec/              ← ddd-spec output (what it SHOULD be)
+    domains/
+      ...
+```
+
+Both directories use the same domain.yaml format. Running both skills on the same project and comparing the two directories gives you the delta between current architecture and ideal architecture — the refactoring roadmap.
+
 ## Templates
 
 See `references/templates.md` for fillable YAML templates (`domain.yaml`, `ubiquitous-language.yaml`, `ports.yaml`) with full field descriptions.
@@ -122,7 +141,7 @@ Apply the decision rule. The hardest call is subdomain vs. adjacent — use the 
 After completing an RDOD analysis with filled `domain.yaml` files:
 
 ```bash
-python skills/rdod/scripts/generate_context_map.py ./domains
+python skills/rdod/scripts/generate_context_map.py rdod/analysis/domains
 ```
 
 Opens as `context-map.html` in any browser — no server needed. Shows each domain's

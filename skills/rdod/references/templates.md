@@ -1,6 +1,6 @@
 # RDOD YAML Templates
 
-Three templates per domain. Store as files in `domains/<domain-name>/`.
+Three templates per domain. Store as files in `rdod/analysis/domains/<domain-name>/`.
 
 All refs use URI-style strings for linkability: `domain://<id>`, `port://<domain-id>/<direction>/<name>`.
 
@@ -196,12 +196,12 @@ ports:
 
 When a system spans multiple repositories (e.g., microservices), the domain graph crosses repo boundaries. Handle this as follows:
 
-- **One `domains/` directory spans all repos.** Maintain a single top-level `domains/` directory (in its own repo or a designated repo) that contains domain.yaml files for the entire system. Each domain's `code_locations` points to paths in specific repos (prefix with the repo name: `<repo>/src/path`).
-- **Cross-repo refs work unchanged.** `domain://` and `port://` refs are globally unique by `id`, not by file path. A domain in repo A can reference a domain in repo B as long as both have entries in the shared `domains/` directory.
+- **One `rdod/analysis/domains/` directory spans all repos.** Maintain a single top-level output directory (in its own repo or a designated repo) that contains domain.yaml files for the entire system. Each domain's `code_locations` points to paths in specific repos (prefix with the repo name: `<repo>/src/path`).
+- **Cross-repo refs work unchanged.** `domain://` and `port://` refs are globally unique by `id`, not by file path. A domain in repo A can reference a domain in repo B as long as both have entries in the shared output directory.
 - **Master checklist spans all repos.** During crawling, build one checklist covering all repos. Note which repo each module comes from.
 - **Validate cross-repo refs explicitly.** Since imports can't be traced across repo boundaries with a single `grep`, document cross-repo dependencies in the `relationship` field and verify them manually or via API contracts.
 
-For single-repo systems, ignore this section — everything lives under one `domains/` directory by default.
+For single-repo systems, ignore this section — everything lives under one `rdod/analysis/domains/` directory by default.
 
 ## Reference Integrity Rules (for tooling)
 
@@ -215,7 +215,7 @@ For single-repo systems, ignore this section — everything lives under one `dom
 ## Folder Convention
 
 ```
-domains/
+rdod/analysis/domains/
   video-editing/
     domain.yaml
     ubiquitous-language.yaml
