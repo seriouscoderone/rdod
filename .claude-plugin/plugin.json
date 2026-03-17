@@ -1,7 +1,7 @@
 {
-  "name": "rdod",
-  "version": "1.0.0",
-  "description": "Recursive Domain-Oriented Design (RDOD) — a DDD-inspired methodology for structuring and navigating software at any abstraction level. Guides domain detection, template filling, and codebase analysis.",
+  "name": "domain-design-toolkit",
+  "version": "1.1.0",
+  "description": "Domain-oriented design toolkit: RDOD for analyzing existing codebases, DDD-Spec for generating domain specifications from scratch. Both produce compatible domain.yaml files.",
   "author": {
     "name": "seriouscoderone",
     "url": "https://github.com/seriouscoderone"
@@ -9,6 +9,6 @@
   "homepage": "https://github.com/seriouscoderone/rdod",
   "repository": "https://github.com/seriouscoderone/rdod",
   "license": "MIT",
-  "keywords": ["ddd", "domain-driven-design", "architecture", "rdod", "software-design"],
+  "keywords": ["ddd", "domain-driven-design", "architecture", "rdod", "ddd-spec", "software-design", "specification"],
   "skills": "./skills/"
 }

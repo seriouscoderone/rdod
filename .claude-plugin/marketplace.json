@@ -1,5 +1,5 @@
 {
-  "name": "rdod-marketplace",
+  "name": "domain-design-toolkit",
   "owner": {
     "name": "seriouscoderone",
     "url": "https://github.com/seriouscoderone"
@@ -7,7 +7,15 @@
   "plugins": [
     {
       "name": "rdod",
-      "description": "Recursive Domain-Oriented Design (RDOD) — a DDD-inspired methodology for structuring and navigating software at any abstraction level",
+      "description": "Recursive Domain-Oriented Design (RDOD) — analyze existing codebases to map domains, relationships, and architectural issues",
+      "source": {
+        "source": "github",
+        "repo": "seriouscoderone/rdod"
+      }
+    },
+    {
+      "name": "ddd-spec",
+      "description": "DDD Specification Generator — build comprehensive domain specs from scratch through iterative LLM-driven expansion",
       "source": {
         "source": "github",
         "repo": "seriouscoderone/rdod"
