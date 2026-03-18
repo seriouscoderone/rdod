@@ -108,6 +108,20 @@ Present the language to the user: "Here are the core terms for [domain]. Are the
 
 **Issue cue:** If a term seems to mean different things in different contexts within this domain → the domain may need splitting (`hierarchy-imbalance`).
 
+#### 5a-bis — Pattern detection
+
+After drafting 3+ terms for a domain, check for shared structural patterns:
+
+1. **Shape comparison.** Do multiple terms have the same set of invariant categories (e.g., all have a "trigger," "storage," "timeout," and "resolution" invariant)?
+
+2. **Value-only variation.** If the terms differ only in the specific values within those categories (not in what categories exist), they are instances of a pattern.
+
+3. **Extract the pattern.** Create a new term that defines the common structure. Name it "&lt;Thing&gt; Pattern" or "&lt;Thing&gt; Structure." List the structural elements as invariants. Note any exceptions (instances that deviate from the pattern).
+
+4. **Link instances.** Add a `pattern` field to each instance term in `ubiquitous-language.yaml`, referencing the pattern term. This signals to implementors that a parameterized/generic implementation is appropriate.
+
+**Issue cue:** If a domain has 3+ terms that are instances of the same pattern, the domain is likely at the right depth — decomposing further would split instances of the same concept into separate domains, which is over-splitting.
+
 #### 5b — Neighbor discovery
 
 For each remaining candidate on the domain list, determine its relationship to the current domain by applying the decision rule:
@@ -188,6 +202,8 @@ Repeat Steps 5a–5e for the new domain.
 
 **Important:** Each time a new domain is entered, check whether it introduces new candidates not on the original list — new subdomains, infrastructure concerns, kernel dependencies. If so, add them to the candidate list.
 
+**Pattern-instance domains should NOT be further decomposed.** If a domain's terms are primarily instances of a single pattern (e.g., 7 escrow types all following the same trigger/storage/timeout/reprocess structure), the domain is at the right depth. Splitting individual instances into separate sub-subdomains would be over-nesting — they share vocabulary, invariants, and implementation. Instead, ensure the pattern term is defined and all instances reference it.
+
 ---
 
 ### Step 7 — Consolidation checkpoint
@@ -201,7 +217,9 @@ After every 3–5 domains are filled, pause and perform:
    - One should rename its term, OR
    - The term should move to a shared kernel
 
-3. **User checkpoint.** Summarize progress:
+3. **Pattern check.** For each domain with 4+ terms, scan for structural similarity. If 3+ terms share the same invariant categories with different values, flag as a potential unextracted pattern. Ask the user: "These terms look like instances of the same pattern. Should we extract the common structure?"
+
+4. **User checkpoint.** Summarize progress:
    - "We've filled N of M domains."
    - Show the current domain graph (text or Mermaid).
    - "Where should we focus next? Any domains that need revisiting?"

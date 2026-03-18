@@ -77,6 +77,8 @@ Inside the domain's source folder:
 
 **Issue cue:** If invariants are enforced ad-hoc across multiple places (repeated validation logic, no single owner) rather than inside a named aggregate or value object → log `modeling-gap` (`recommendation: introduce-concept:<proposed-name>`).
 
+**Pattern detection:** After extracting 3+ terms, check for shared structural patterns. If multiple types have the same set of fields/invariant categories but differ only in specific values (e.g., 7 escrow types each with a trigger, storage location, timeout, and reprocess condition), extract a pattern term that defines the common structure. Add a `pattern` field to each instance term in `ubiquitous-language.yaml`. This signals that a parameterized implementation is appropriate and that the domain should NOT be further decomposed — splitting instances of the same pattern into separate subdomains is over-nesting.
+
 ---
 
 ## Step 4 — Identify clients (upstream)

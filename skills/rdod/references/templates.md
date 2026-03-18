@@ -151,6 +151,7 @@ domain_ref: "<domain-id>"
 terms:
   - term: "<term>"
     synonyms: []
+    pattern: ""              # Optional: name of a pattern term this is an instance of
     definition: "<precise definition>"
     invariants: ["<rule that must always hold for this term>"]
     examples: ["<code snippet or scenario>"]

@@ -7,6 +7,7 @@ domain_ref: ""
 terms:
   - term: ""
     synonyms: []
+    pattern: ""          # optional: name of a pattern term this is an instance of
     definition: ""
     invariants: []       # rules that must always hold for this term, e.g. "Timeline must have >= 1 clip"
     examples: []         # code snippet or scenario showing this term in use
