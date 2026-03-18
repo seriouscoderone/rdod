@@ -6,16 +6,8 @@
   },
   "plugins": [
     {
-      "name": "rdod",
-      "description": "Recursive Domain-Oriented Design (RDOD) — analyze existing codebases to map domains, relationships, and architectural issues",
-      "source": {
-        "source": "github",
-        "repo": "seriouscoderone/rdod"
-      }
-    },
-    {
-      "name": "ddd-spec",
-      "description": "DDD Specification Generator — build comprehensive domain specs from scratch through iterative LLM-driven expansion",
+      "name": "domain-design-toolkit",
+      "description": "RDOD for analyzing existing codebases + DDD-Spec for generating domain specifications from scratch. Both produce compatible domain.yaml files.",
       "source": {
         "source": "github",
         "repo": "seriouscoderone/rdod"
