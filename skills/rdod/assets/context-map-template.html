@@ -66,7 +66,6 @@
   #search:focus { border-color: #4a90d9; }
   #domain-list { list-style: none; overflow-y: auto; flex: 1; padding: 4px 0; }
   #domain-list li {
-    padding: 7px 12px;
     font-size: 12px;
     cursor: pointer;
     border-left: 3px solid transparent;
@@ -77,6 +76,30 @@
   }
   #domain-list li:hover { background: #0f3460; color: #e0e0e0; }
   #domain-list li.active { border-left-color: #f5c518; color: #f5c518; background: #0f3460; }
+  #domain-list .tree-label {
+    display: flex;
+    align-items: center;
+    padding: 5px 8px;
+  }
+  #domain-list .tree-toggle {
+    width: 14px;
+    flex-shrink: 0;
+    font-size: 9px;
+    color: #555;
+    text-align: center;
+    cursor: pointer;
+    user-select: none;
+  }
+  #domain-list .tree-toggle:hover { color: #aaa; }
+  #domain-list .tree-toggle.leaf { visibility: hidden; }
+  #domain-list .tree-name { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+  #domain-list .tree-children { display: block; }
+  #domain-list .tree-children.collapsed { display: none; }
+  #domain-list li[data-depth="0"] .tree-label { padding-left: 8px; }
+  #domain-list li[data-depth="1"] .tree-label { padding-left: 20px; }
+  #domain-list li[data-depth="2"] .tree-label { padding-left: 32px; }
+  #domain-list li[data-depth="3"] .tree-label { padding-left: 44px; }
+  #domain-list li[data-depth="4"] .tree-label { padding-left: 56px; }
 
   /* Main content */
   #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
@@ -277,23 +300,117 @@ document.getElementById('btn-back').addEventListener('click', goBack);
 
 // ── Sidebar ───────────────────────────────────────────────────────────────────
 
+// Build a tree from subdomain relationships.
+// A domain's parent is whoever lists it in their subdomains.
+// Domains with no parent are roots. Adjacents don't affect the tree.
+
+function buildTree() {
+  const childToParent = {};  // childId → parentId
+  const parentToChildren = {}; // parentId → [childIds]
+
+  RDOD_DATA.forEach(d => {
+    const parentId = stripPrefix(d.id);
+    const subs = getList(d, 'subdomains');
+    subs.forEach(ref => {
+      const childId = stripPrefix(ref);
+      if (getDomain(childId)) {
+        childToParent[childId] = parentId;
+        if (!parentToChildren[parentId]) parentToChildren[parentId] = [];
+        parentToChildren[parentId].push(childId);
+      }
+    });
+  });
+
+  // Roots: domains that are no one's subdomain
+  const roots = RDOD_DATA
+    .map(d => stripPrefix(d.id))
+    .filter(id => !childToParent[id])
+    .sort();
+
+  return { roots, parentToChildren };
+}
+
+let collapsedNodes = new Set();
+
 function renderSidebar(filter) {
   const list = document.getElementById('domain-list');
-  const q = (filter || '').toLowerCase();
-  const items = RDOD_DATA
-    .filter(d => !q || (d.id || '').toLowerCase().includes(q) || (d.name || '').toLowerCase().includes(q))
-    .sort((a, b) => (a.id || '').localeCompare(b.id || ''));
-
   list.innerHTML = '';
-  items.forEach(d => {
+  const q = (filter || '').toLowerCase();
+
+  if (q) {
+    // Search mode: flat filtered list
+    const items = RDOD_DATA
+      .filter(d => (d.id || '').toLowerCase().includes(q) || (d.name || '').toLowerCase().includes(q))
+      .sort((a, b) => (a.id || '').localeCompare(b.id || ''));
+
+    items.forEach(d => {
+      const li = document.createElement('li');
+      const clean = stripPrefix(d.id);
+      li.setAttribute('data-depth', '0');
+      const label = document.createElement('div');
+      label.className = 'tree-label';
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'tree-name';
+      nameSpan.textContent = d.name || clean;
+      label.appendChild(nameSpan);
+      li.appendChild(label);
+      li.title = clean;
+      if (clean === currentId) li.classList.add('active');
+      li.addEventListener('click', () => navigateTo(d.id));
+      list.appendChild(li);
+    });
+    return;
+  }
+
+  // Tree mode: hierarchical view
+  const { roots, parentToChildren } = buildTree();
+
+  function renderNode(id, depth) {
+    const d = getDomain(id);
+    if (!d) return;
+    const children = (parentToChildren[id] || []).sort();
+    const hasChildren = children.length > 0;
+    const isCollapsed = collapsedNodes.has(id);
+
     const li = document.createElement('li');
-    const clean = stripPrefix(d.id);
-    li.textContent = d.name || clean;
-    li.title = clean;
-    if (clean === currentId) li.classList.add('active');
-    li.addEventListener('click', () => navigateTo(d.id));
+    li.setAttribute('data-depth', Math.min(depth, 4));
+
+    const label = document.createElement('div');
+    label.className = 'tree-label';
+
+    const toggle = document.createElement('span');
+    toggle.className = 'tree-toggle' + (hasChildren ? '' : ' leaf');
+    toggle.textContent = hasChildren ? (isCollapsed ? '▶' : '▼') : '';
+    if (hasChildren) {
+      toggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (collapsedNodes.has(id)) collapsedNodes.delete(id);
+        else collapsedNodes.add(id);
+        renderSidebar();
+      });
+    }
+
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'tree-name';
+    nameSpan.textContent = d.name || id;
+
+    label.appendChild(toggle);
+    label.appendChild(nameSpan);
+    li.appendChild(label);
+    li.title = id;
+    if (id === currentId) li.classList.add('active');
+    li.addEventListener('click', (e) => {
+      if (e.target.classList.contains('tree-toggle')) return;
+      navigateTo(d.id);
+    });
     list.appendChild(li);
-  });
+
+    if (hasChildren && !isCollapsed) {
+      children.forEach(childId => renderNode(childId, depth + 1));
+    }
+  }
+
+  roots.forEach(id => renderNode(id, 0));
 }
 
 document.getElementById('search').addEventListener('input', e => {
