@@ -39,8 +39,40 @@ def is_domain_file(data):
     return "id" in data and "domain_clients" in data
 
 
+def enrich_domain(data, domain_dir):
+    """Load companion files (ubiquitous-language.yaml, ports.yaml) and merge into domain data."""
+    # Load ubiquitous-language.yaml for events, rules, and expanded term details
+    lang_path = Path(domain_dir) / "ubiquitous-language.yaml"
+    if lang_path.exists():
+        lang_data = load_domain(str(lang_path))
+        if lang_data and isinstance(lang_data, dict):
+            data["_events"] = lang_data.get("events", [])
+            data["_rules"] = lang_data.get("rules", [])
+            # Merge expanded term fields (synonyms, examples, related_terms, pattern)
+            # into the inline ubiquitous_language entries
+            expanded = {}
+            for term in lang_data.get("terms", []):
+                if isinstance(term, dict) and term.get("term"):
+                    expanded[term["term"]] = term
+            for entry in data.get("ubiquitous_language", []):
+                if isinstance(entry, dict) and entry.get("term") in expanded:
+                    exp = expanded[entry["term"]]
+                    for key in ("synonyms", "examples", "related_terms", "pattern", "invariants"):
+                        if key in exp and exp[key] and not entry.get(key):
+                            entry[key] = exp[key]
+
+    # Load ports.yaml
+    ports_path = Path(domain_dir) / "ports.yaml"
+    if ports_path.exists():
+        ports_data = load_domain(str(ports_path))
+        if ports_data and isinstance(ports_data, dict):
+            data["_ports"] = ports_data.get("ports", [])
+
+    return data
+
+
 def build_data(domains_dir):
-    """Collect all valid domain dicts from domains_dir."""
+    """Collect all valid domain dicts from domains_dir, enriched with companion files."""
     files = find_domain_files(domains_dir)
     domains = []
     for path in sorted(files):
@@ -49,8 +81,11 @@ def build_data(domains_dir):
             continue
         if not is_domain_file(data):
             continue
-        # Attach source path for debugging (stripped from JSON output if undesired)
+        # Attach source path for debugging
         data["_source"] = str(path)
+        # Enrich with companion files from the same directory
+        domain_dir = str(Path(path).parent)
+        enrich_domain(data, domain_dir)
         domains.append(data)
     return domains
 

@@ -169,6 +169,49 @@
 
   .empty-msg { color: #555; font-size: 12px; font-style: italic; }
 
+  /* Invariants */
+  .invariant { font-size: 11px; color: #e67e22; padding: 2px 0; font-style: italic; }
+
+  /* Neighbor lists */
+  .neighbor-item { display: flex; gap: 8px; font-size: 12px; padding: 4px 0; border-bottom: 1px solid #1a2540; align-items: baseline; flex-wrap: wrap; }
+  .neighbor-item .nb-name { color: #4a90d9; cursor: pointer; }
+  .neighbor-item .nb-name:hover { text-decoration: underline; }
+  .neighbor-item .nb-rel { color: #888; font-size: 11px; }
+  .neighbor-item .nb-port { color: #555; font-size: 10px; font-family: monospace; }
+  .neighbor-item .nb-type-label { font-size: 10px; padding: 1px 5px; border-radius: 8px; white-space: nowrap; }
+  .nb-client { background: #1a3a5c; color: #4a90d9; }
+  .nb-subdomain { background: #1a3d1a; color: #5cb85c; }
+  .nb-kernel { background: #2d1a3d; color: #9b59b6; }
+  .nb-adjacent { background: #3d2a00; color: #e67e22; }
+  .nb-external { background: #2a2a2a; color: #888; }
+
+  /* Ports */
+  .port-item { background: #0f1a2e; border: 1px solid #1e2d4a; border-radius: 4px; padding: 8px 10px; margin-bottom: 6px; font-size: 12px; }
+  .port-item .port-header { display: flex; gap: 8px; align-items: center; margin-bottom: 3px; }
+  .port-item .port-dir { font-size: 10px; padding: 1px 5px; border-radius: 8px; }
+  .port-dir.inbound { background: #1a3a5c; color: #4a90d9; }
+  .port-dir.outbound { background: #1a3d1a; color: #5cb85c; }
+  .port-item .port-name { color: #f5c518; font-weight: 600; }
+  .port-item .port-contract { color: #ccc; font-family: monospace; font-size: 11px; }
+  .port-item .port-protocol { color: #666; font-size: 10px; }
+  .port-item .port-refs { color: #555; font-size: 10px; }
+
+  /* Source material */
+  .source-item { display: flex; gap: 8px; font-size: 12px; padding: 3px 0; border-bottom: 1px solid #1a2540; }
+  .source-item .src-type { font-size: 10px; padding: 1px 5px; border-radius: 8px; background: #1a2540; color: #8ab4f8; }
+  .source-item .src-ref { color: #ccc; }
+
+  /* Implementation guidance */
+  .guidance-row { display: flex; gap: 8px; font-size: 12px; padding: 3px 0; }
+  .guidance-row .guide-label { color: #888; width: 120px; flex-shrink: 0; }
+  .guidance-row .guide-value { color: #ccc; }
+
+  /* Events and rules */
+  .event-item { background: #0f1a2e; border: 1px solid #1e2d4a; border-radius: 4px; padding: 8px 10px; margin-bottom: 6px; font-size: 12px; }
+  .event-item .event-name { color: #f5c518; font-weight: 600; margin-bottom: 2px; }
+  .event-item .event-detail { color: #888; font-size: 11px; }
+  .rule-item { font-size: 12px; color: #ccc; padding: 3px 0; border-bottom: 1px solid #1a2540; }
+
   /* Legend */
   #legend {
     display: flex;
@@ -762,6 +805,8 @@ function makeSection(title, content, startCollapsed) {
   return wrap;
 }
 
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
 function renderInfo(domain) {
   const panel = document.getElementById('info-panel');
   panel.innerHTML = '';
@@ -799,25 +844,130 @@ function renderInfo(domain) {
     panel.appendChild(desc);
   }
 
-  // Ubiquitous language
+  // ── Ubiquitous Language (with invariants + pattern) ──
   const lang = (domain.ubiquitous_language || []).filter(t => t && t.term);
   if (lang.length > 0) {
-    const table = document.createElement('table');
-    table.className = 'lang-table';
+    const langWrap = document.createElement('div');
     lang.forEach(entry => {
-      const tr = document.createElement('tr');
-      const td1 = document.createElement('td');
-      td1.textContent = entry.term;
-      const td2 = document.createElement('td');
-      td2.textContent = entry.definition || '';
-      tr.appendChild(td1);
-      tr.appendChild(td2);
-      table.appendChild(tr);
+      const row = document.createElement('div');
+      row.style.cssText = 'padding:4px 0;border-bottom:1px solid #1e2d4a';
+      let html = `<div style="display:flex;gap:8px"><span style="color:#f5c518;font-weight:600;min-width:30%;font-size:12px">${esc(entry.term)}</span><span style="color:#ccc;font-size:12px">${esc(entry.definition || '')}</span></div>`;
+      if (entry.pattern) {
+        html += `<div style="font-size:10px;color:#9b59b6;margin-top:2px">pattern: ${esc(entry.pattern)}</div>`;
+      }
+      const invs = (entry.invariants || []).filter(Boolean);
+      if (invs.length > 0) {
+        invs.forEach(inv => {
+          html += `<div class="invariant">↳ ${esc(inv)}</div>`;
+        });
+      }
+      row.innerHTML = html;
+      langWrap.appendChild(row);
     });
-    panel.appendChild(makeSection(`UBIQUITOUS LANGUAGE (${lang.length} terms)`, table, false));
+    panel.appendChild(makeSection(`UBIQUITOUS LANGUAGE (${lang.length} terms)`, langWrap, false));
   }
 
-  // Issues
+  // ── Neighbors (all 5 types with details) ──
+  function renderNeighborSection(items, label, cssClass, refKey, isNavigable) {
+    if (!items || items.length === 0) return;
+    const wrap = document.createElement('div');
+    items.forEach(item => {
+      const ref = typeof item === 'string' ? item : (item[refKey || 'ref'] || item.name || '');
+      const id = stripPrefix(ref);
+      const d = getDomain(id);
+      const displayName = (d && d.name) || id || ref;
+      const rel = (typeof item === 'object') ? (item.relationship || '') : '';
+      const port = (typeof item === 'object') ? (item.via_port || '') : '';
+      const source = (typeof item === 'object') ? (item.source || '') : '';
+      const crossCut = (typeof item === 'object') ? item.is_cross_cutting : false;
+      const abstraction = (typeof item === 'object') ? (item.abstraction || '') : '';
+      const implNotes = (typeof item === 'object') ? (item.implementation_notes || '') : '';
+
+      const row = document.createElement('div');
+      row.className = 'neighbor-item';
+      let html = `<span class="nb-type-label ${cssClass}">${label}</span>`;
+      html += `<span class="nb-name" ${isNavigable && d ? `data-nav="${esc(id)}"` : 'style="cursor:default;color:#bbb"'}>${esc(displayName)}</span>`;
+      if (rel) html += `<span class="nb-rel">${esc(rel)}</span>`;
+      if (crossCut) html += `<span class="nb-rel" style="color:#e67e22">(cross-cutting)</span>`;
+      if (source) html += `<span class="nb-rel">${esc(source)}</span>`;
+      if (abstraction) html += `<span class="nb-rel">${esc(abstraction)}</span>`;
+      if (port) html += `<span class="nb-port">${esc(port)}</span>`;
+      if (implNotes) html += `<div style="font-size:11px;color:#666;width:100%;margin-top:2px">${esc(implNotes)}</div>`;
+      row.innerHTML = html;
+
+      const navEl = row.querySelector('[data-nav]');
+      if (navEl) navEl.addEventListener('click', () => navigateTo(navEl.getAttribute('data-nav')));
+
+      wrap.appendChild(row);
+    });
+    return wrap;
+  }
+
+  const clients = (domain.domain_clients || []).filter(Boolean);
+  const subs = (domain.subdomains || []).filter(Boolean);
+  const kernels = (domain.kernels || []).filter(Boolean);
+  const adjacents = (domain.adjacents || []).filter(Boolean);
+  const externals = (domain.externals || []).filter(Boolean);
+  const totalNeighbors = clients.length + subs.length + kernels.length + adjacents.length + externals.length;
+
+  if (totalNeighbors > 0) {
+    const neighborsWrap = document.createElement('div');
+    const cw = renderNeighborSection(clients, 'client', 'nb-client', 'ref', true);
+    const sw = renderNeighborSection(subs, 'subdomain', 'nb-subdomain', 'ref', true);
+    const kw = renderNeighborSection(kernels, 'kernel', 'nb-kernel', 'ref', false);
+    const aw = renderNeighborSection(adjacents, 'adjacent', 'nb-adjacent', 'ref', true);
+    const ew = renderNeighborSection(externals, 'external', 'nb-external', 'name', false);
+    [cw, sw, kw, aw, ew].forEach(w => { if (w) neighborsWrap.appendChild(w); });
+    panel.appendChild(makeSection(`NEIGHBORS (${totalNeighbors})`, neighborsWrap, false));
+  }
+
+  // ── Ports ──
+  const ports = (domain._ports || []).filter(p => p && p.name);
+  if (ports.length > 0) {
+    const portsWrap = document.createElement('div');
+    ports.forEach(p => {
+      const item = document.createElement('div');
+      item.className = 'port-item';
+      let html = `<div class="port-header"><span class="port-dir ${p.type || ''}">${esc(p.type || '')}</span><span class="port-name">${esc(p.name)}</span></div>`;
+      if (p.contract) html += `<div class="port-contract">${esc(p.contract)}</div>`;
+      if (p.protocol) html += `<div class="port-protocol">protocol: ${esc(p.protocol)}</div>`;
+      if (p.refs && p.refs.length) html += `<div class="port-refs">refs: ${p.refs.map(r => esc(r)).join(', ')}</div>`;
+      item.innerHTML = html;
+      portsWrap.appendChild(item);
+    });
+    panel.appendChild(makeSection(`PORTS (${ports.length})`, portsWrap, true));
+  }
+
+  // ── Events ──
+  const events = (domain._events || []).filter(e => e && e.name);
+  if (events.length > 0) {
+    const eventsWrap = document.createElement('div');
+    events.forEach(ev => {
+      const item = document.createElement('div');
+      item.className = 'event-item';
+      let html = `<div class="event-name">${esc(ev.name)}</div>`;
+      if (ev.triggers) html += `<div class="event-detail">triggers: ${esc(ev.triggers)}</div>`;
+      if (ev.payload) html += `<div class="event-detail">payload: ${esc(ev.payload)}</div>`;
+      item.innerHTML = html;
+      eventsWrap.appendChild(item);
+    });
+    panel.appendChild(makeSection(`EVENTS (${events.length})`, eventsWrap, true));
+  }
+
+  // ── Rules ──
+  const rules = (domain._rules || []).filter(Boolean);
+  if (rules.length > 0) {
+    const rulesWrap = document.createElement('div');
+    rules.forEach(r => {
+      const row = document.createElement('div');
+      row.className = 'rule-item';
+      row.textContent = typeof r === 'string' ? r : JSON.stringify(r);
+      rulesWrap.appendChild(row);
+    });
+    panel.appendChild(makeSection(`RULES (${rules.length})`, rulesWrap, true));
+  }
+
+  // ── Issues (full detail) ──
   const issues = (domain.issues || []).filter(i => i && i.category);
   if (issues.length > 0) {
     const wrap = document.createElement('div');
@@ -840,18 +990,21 @@ function renderInfo(domain) {
     issues.forEach(iss => {
       const item = document.createElement('div');
       item.className = 'issue-item';
-      item.innerHTML = `
-        <div class="issue-cat">${iss.category || ''} | ${iss.severity || ''}</div>
-        <div class="issue-rec">${iss.recommendation || iss.description || ''}</div>
-        ${iss.evidence ? `<div class="issue-ev">${iss.evidence}</div>` : ''}
-      `;
+      let html = `<div class="issue-cat">${esc(iss.category || '')} | ${esc(iss.severity || '')}`;
+      if (iss.ref) html += ` | ${esc(iss.ref)}`;
+      html += `</div>`;
+      if (iss.description) html += `<div class="issue-rec">${esc(iss.description)}</div>`;
+      if (iss.recommendation) html += `<div style="color:#5cb85c;font-size:11px;margin-top:2px">→ ${esc(iss.recommendation)}</div>`;
+      if (iss.evidence) html += `<div class="issue-ev">${esc(iss.evidence)}</div>`;
+      if (iss.rationale) html += `<div class="issue-ev">${esc(iss.rationale)}</div>`;
+      item.innerHTML = html;
       wrap.appendChild(item);
     });
 
     panel.appendChild(makeSection(`ISSUES (${issues.length})`, wrap, true));
   }
 
-  // Code locations
+  // ── Code Locations (RDOD) ──
   const locs = (domain.code_locations || []).filter(l => l);
   if (locs.length > 0) {
     const locWrap = document.createElement('div');
@@ -860,10 +1013,33 @@ function renderInfo(domain) {
       const t = typeof loc === 'object' ? (loc.type || '') : '';
       const row = document.createElement('div');
       row.className = 'code-loc';
-      row.innerHTML = `<span class="loc-path">${p}</span><span class="loc-type">${t}</span>`;
+      row.innerHTML = `<span class="loc-path">${esc(p)}</span><span class="loc-type">${esc(t)}</span>`;
       locWrap.appendChild(row);
     });
     panel.appendChild(makeSection('CODE LOCATIONS', locWrap, false));
+  }
+
+  // ── Implementation Guidance (ddd-spec) ──
+  const guide = domain.implementation_guidance;
+  if (guide && (guide.suggested_type || guide.language_affinity || guide.notes)) {
+    const guideWrap = document.createElement('div');
+    if (guide.suggested_type) guideWrap.innerHTML += `<div class="guidance-row"><span class="guide-label">Type:</span><span class="guide-value">${esc(guide.suggested_type)}</span></div>`;
+    if (guide.language_affinity) guideWrap.innerHTML += `<div class="guidance-row"><span class="guide-label">Language:</span><span class="guide-value">${esc(guide.language_affinity)}</span></div>`;
+    if (guide.notes) guideWrap.innerHTML += `<div class="guidance-row"><span class="guide-label">Notes:</span><span class="guide-value">${esc(guide.notes)}</span></div>`;
+    panel.appendChild(makeSection('IMPLEMENTATION GUIDANCE', guideWrap, false));
+  }
+
+  // ── Source Material (ddd-spec) ──
+  const sources = (domain.source_material || []).filter(s => s && (s.type || s.reference));
+  if (sources.length > 0) {
+    const srcWrap = document.createElement('div');
+    sources.forEach(s => {
+      const row = document.createElement('div');
+      row.className = 'source-item';
+      row.innerHTML = `<span class="src-type">${esc(s.type || '')}</span><span class="src-ref">${esc(s.reference || '')}</span>`;
+      srcWrap.appendChild(row);
+    });
+    panel.appendChild(makeSection(`SOURCE MATERIAL (${sources.length})`, srcWrap, true));
   }
 }
 
