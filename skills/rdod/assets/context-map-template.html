@@ -260,7 +260,7 @@
   </header>
   <div id="layout">
     <aside id="sidebar">
-      <input id="search" type="text" placeholder="Search domains…" autocomplete="off">
+      <input id="search" type="text" placeholder="Search all fields…" autocomplete="off">
       <ul id="domain-list"></ul>
     </aside>
     <div id="sidebar-handle"></div>
@@ -410,9 +410,15 @@ function renderSidebar(filter) {
   const q = (filter || '').toLowerCase();
 
   if (q) {
-    // Search mode: flat filtered list
+    // Search mode: full-text search across all JSON fields
+    if (!window._searchCache) {
+      window._searchCache = {};
+      allDomains().forEach(d => {
+        window._searchCache[stripPrefix(d.id)] = JSON.stringify(d).toLowerCase();
+      });
+    }
     const items = allDomains()
-      .filter(d => (d.id || '').toLowerCase().includes(q) || (d.name || '').toLowerCase().includes(q))
+      .filter(d => window._searchCache[stripPrefix(d.id)].includes(q))
       .sort((a, b) => (a.id || '').localeCompare(b.id || ''));
 
     items.forEach(d => {
