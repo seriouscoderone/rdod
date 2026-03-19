@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Domain Context Map</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ajv/8.17.1/ajv2020.bundle.min.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a2e; color: #e0e0e0; }
@@ -283,6 +284,31 @@
 
 <script>
 const RDOD_DATA = __RDOD_DATA_PLACEHOLDER__;
+const RDOD_SCHEMA = __RDOD_SCHEMA_PLACEHOLDER__;
+
+// ── Schema Validation ────────────────────────────────────────────────────────
+
+(function validateSchema() {
+  if (typeof Ajv2020 === 'undefined') {
+    console.warn('[RDOD] AJV not loaded — schema validation skipped');
+    return;
+  }
+  try {
+    const ajv = new Ajv2020({ allErrors: true });
+    const validate = ajv.compile(RDOD_SCHEMA);
+    const valid = validate(RDOD_DATA);
+    if (valid) {
+      console.log(`[RDOD] Schema validation passed (${Object.keys(RDOD_DATA).length} domains)`);
+    } else {
+      console.warn(`[RDOD] Schema validation found ${validate.errors.length} issue(s):`);
+      validate.errors.slice(0, 20).forEach(err => {
+        console.warn(`  ${err.instancePath || '/'}: ${err.message}`);
+      });
+    }
+  } catch (e) {
+    console.warn('[RDOD] Schema validation error:', e.message);
+  }
+})();
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 

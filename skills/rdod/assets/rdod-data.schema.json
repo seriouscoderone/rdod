@@ -1,0 +1,299 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/seriouscoderone/rdod/rdod-data.schema.json",
+  "title": "RDOD Context Map Data",
+  "description": "Schema for the JSON object that powers the RDOD/ddd-spec context map HTML viewer. The object is keyed by domain ID, with each value being an enriched domain record combining data from domain.yaml, ubiquitous-language.yaml, and ports.yaml.",
+  "type": "object",
+  "additionalProperties": {
+    "$ref": "#/$defs/domain"
+  },
+  "$defs": {
+    "domain": {
+      "type": "object",
+      "required": ["id", "domain_clients"],
+      "properties": {
+        "template_version": {
+          "type": "string",
+          "description": "Template format version (e.g., '1.0')"
+        },
+        "id": {
+          "type": "string",
+          "description": "Globally unique, URI-friendly domain identifier (e.g., 'video-editing', 'keri/event-log/escrow')"
+        },
+        "name": {
+          "type": "string",
+          "description": "Human-readable domain name"
+        },
+        "description": {
+          "type": "string",
+          "description": "What problem space this domain covers"
+        },
+        "version": {
+          "type": "string",
+          "description": "Semver version of this domain spec (e.g., '1.0.0', '0.0.0-stub')"
+        },
+        "ubiquitous_language": {
+          "type": "array",
+          "description": "Core terms for this domain",
+          "items": {
+            "$ref": "#/$defs/term"
+          }
+        },
+        "domain_clients": {
+          "type": "array",
+          "description": "Upstream domains that depend on this domain",
+          "items": {
+            "oneOf": [
+              { "type": "string" },
+              { "$ref": "#/$defs/clientRef" }
+            ]
+          }
+        },
+        "subdomains": {
+          "type": "array",
+          "description": "Downstream domains this domain drives and composes",
+          "items": {
+            "oneOf": [
+              { "type": "string" },
+              { "$ref": "#/$defs/subdomainRef" }
+            ]
+          }
+        },
+        "kernels": {
+          "type": "array",
+          "description": "External libraries adopted natively (no wrapping)",
+          "items": {
+            "oneOf": [
+              { "type": "string" },
+              { "$ref": "#/$defs/kernelRef" }
+            ]
+          }
+        },
+        "adjacents": {
+          "type": "array",
+          "description": "Lateral peer domains — neither side controls the other",
+          "items": {
+            "oneOf": [
+              { "type": "string" },
+              { "$ref": "#/$defs/adjacentRef" }
+            ]
+          }
+        },
+        "externals": {
+          "type": "array",
+          "description": "Infrastructure/IO concerns encapsulated behind interfaces",
+          "items": {
+            "oneOf": [
+              { "type": "string" },
+              { "$ref": "#/$defs/externalRef" }
+            ]
+          }
+        },
+        "issues": {
+          "type": "array",
+          "description": "Architectural violations or design concerns",
+          "items": {
+            "$ref": "#/$defs/issue"
+          }
+        },
+        "code_locations": {
+          "type": "array",
+          "description": "Where this domain lives in the codebase (RDOD)",
+          "items": {
+            "oneOf": [
+              { "type": "string" },
+              { "$ref": "#/$defs/codeLocation" }
+            ]
+          }
+        },
+        "implementation_guidance": {
+          "$ref": "#/$defs/implementationGuidance",
+          "description": "Hints for future implementors (ddd-spec)"
+        },
+        "source_material": {
+          "type": "array",
+          "description": "Provenance tracking — where this domain's spec came from (ddd-spec)",
+          "items": {
+            "$ref": "#/$defs/sourceMaterial"
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "_ports": {
+          "type": "array",
+          "description": "Enriched from ports.yaml — inbound and outbound interfaces",
+          "items": {
+            "$ref": "#/$defs/port"
+          }
+        },
+        "_events": {
+          "type": "array",
+          "description": "Enriched from ubiquitous-language.yaml — domain events",
+          "items": {
+            "$ref": "#/$defs/event"
+          }
+        },
+        "_rules": {
+          "type": "array",
+          "description": "Enriched from ubiquitous-language.yaml — cross-term business rules",
+          "items": {
+            "type": "string"
+          }
+        },
+        "_source": {
+          "type": "string",
+          "description": "File path of the source domain.yaml (debugging)"
+        }
+      }
+    },
+    "term": {
+      "type": "object",
+      "properties": {
+        "term": { "type": "string", "description": "The term name" },
+        "definition": { "type": "string", "description": "Precise meaning in this domain" },
+        "invariants": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Rules that must always hold for this term"
+        },
+        "pattern": { "type": "string", "description": "Name of a pattern term this is an instance of" },
+        "synonyms": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "examples": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "related_terms": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "clientRef": {
+      "type": "object",
+      "properties": {
+        "ref": { "type": "string", "description": "domain://<client-id>" },
+        "relationship": { "type": "string" },
+        "via_port": { "type": "string", "description": "port://<this-domain>/inbound/<port-name>" }
+      }
+    },
+    "subdomainRef": {
+      "type": "object",
+      "properties": {
+        "ref": { "type": "string", "description": "domain://<subdomain-id>" },
+        "relationship": { "type": "string" },
+        "via_port": { "type": "string", "description": "port://<subdomain-id>/inbound/<port-name>" }
+      }
+    },
+    "kernelRef": {
+      "type": "object",
+      "properties": {
+        "ref": { "type": "string", "description": "kernel://<id>" },
+        "source": { "type": "string", "description": "Package source (e.g., npm:pkg@ver, cargo:crate, pip:pkg)" },
+        "relationship": { "type": "string", "description": "Why adopted natively" }
+      }
+    },
+    "adjacentRef": {
+      "type": "object",
+      "properties": {
+        "ref": { "type": "string", "description": "domain://<adjacent-id>" },
+        "relationship": { "type": "string", "description": "Context-map pattern (Partnership, ACL, Conformist, etc.)" },
+        "via_port": { "type": "string" },
+        "is_cross_cutting": { "type": "boolean", "default": false },
+        "pattern": { "type": "string", "description": "Context-map pattern name" }
+      }
+    },
+    "externalRef": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Concern name (e.g., 'File Persistence')" },
+        "abstraction": { "type": "string", "description": "Repository | Service | Adapter" },
+        "ref": { "type": "string", "description": "port://<this-domain>/outbound/<port-name>" },
+        "implementation_notes": { "type": "string" }
+      }
+    },
+    "issue": {
+      "type": "object",
+      "properties": {
+        "ref": { "type": "string", "description": "What is being called out (e.g., kernel://color-library)" },
+        "category": {
+          "type": "string",
+          "description": "Issue category",
+          "enum": ["kernel-pollution", "missing-port", "language-inconsistency", "wrong-classification", "inverted-dependency", "hierarchy-imbalance", "modeling-gap"]
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["low", "medium", "high", "critical"]
+        },
+        "description": { "type": "string" },
+        "evidence": { "type": "string", "description": "Concrete proof — file path, method name, snippet (RDOD)" },
+        "rationale": { "type": "string", "description": "Why this is a concern — reasoning (ddd-spec)" },
+        "recommendation": {
+          "type": "string",
+          "description": "Recommended action (replace, wrap-with-acl, add-port, refactor-port, reclassify, split-subdomain, merge-hierarchy, introduce-concept:<name>)"
+        }
+      }
+    },
+    "codeLocation": {
+      "type": "object",
+      "properties": {
+        "path": { "type": "string" },
+        "type": {
+          "type": "string",
+          "description": "module | package | service | app | middleware"
+        }
+      }
+    },
+    "implementationGuidance": {
+      "type": "object",
+      "properties": {
+        "suggested_type": { "type": "string", "description": "module | package | service | app | middleware" },
+        "language_affinity": { "type": "string", "description": "Target language (e.g., 'any', 'typescript', 'rust')" },
+        "notes": { "type": "string" }
+      }
+    },
+    "sourceMaterial": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "user-input | document | domain-expert | llm-inferred"
+        },
+        "reference": { "type": "string", "description": "Description or document name" }
+      }
+    },
+    "port": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "port://<domain-id>/<direction>/<name>" },
+        "type": {
+          "type": "string",
+          "enum": ["inbound", "outbound"]
+        },
+        "name": { "type": "string" },
+        "contract": { "type": "string", "description": "Method/event signature" },
+        "protocol": {
+          "type": "string",
+          "description": "method-call | REST | GraphQL | events | message-queue"
+        },
+        "refs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Who uses this port (domain:// or kernel:// refs)"
+        }
+      }
+    },
+    "event": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "payload": { "type": "string", "description": "Field: type descriptions" },
+        "triggers": { "type": "string", "description": "What causes this event" }
+      }
+    }
+  }
+}

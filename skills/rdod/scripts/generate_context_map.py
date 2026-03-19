@@ -99,6 +99,16 @@ def build_data(domains_dir):
     return domains
 
 
+def load_schema(schema_path):
+    """Load the JSON schema file. Returns the schema dict or None."""
+    try:
+        with open(schema_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        print(f"  note: schema not found at {schema_path}", file=sys.stderr)
+        return None
+
+
 def generate(domains_dir, output, template_path):
     """Build the context map HTML and write to output."""
     print(f"Scanning: {domains_dir}")
@@ -108,6 +118,11 @@ def generate(domains_dir, output, template_path):
         sys.exit(1)
     print(f"Found {len(domains)} domain(s): {list(domains.keys())}")
 
+    # Load schema for embedding
+    script_dir = Path(__file__).parent
+    schema_path = str(script_dir / ".." / "assets" / "rdod-data.schema.json")
+    schema = load_schema(schema_path)
+
     # Read template
     try:
         with open(template_path, "r", encoding="utf-8") as f:
@@ -116,9 +131,11 @@ def generate(domains_dir, output, template_path):
         print(f"Template not found: {template_path}", file=sys.stderr)
         sys.exit(1)
 
-    # Inject data
+    # Inject data and schema
     payload = json.dumps(domains, indent=2, ensure_ascii=False)
+    schema_payload = json.dumps(schema, ensure_ascii=False) if schema else "null"
     html = template.replace("__RDOD_DATA_PLACEHOLDER__", payload)
+    html = html.replace("__RDOD_SCHEMA_PLACEHOLDER__", schema_payload)
 
     # Write output
     out_path = Path(output)
