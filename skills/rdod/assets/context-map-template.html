@@ -293,7 +293,11 @@ function stripPrefix(ref) {
 
 function getDomain(id) {
   const clean = stripPrefix(id);
-  return RDOD_DATA.find(d => stripPrefix(d.id) === clean) || null;
+  return RDOD_DATA[clean] || null;
+}
+
+function allDomains() {
+  return Object.values(RDOD_DATA);
 }
 
 function getList(domain, key) {
@@ -351,7 +355,7 @@ function buildTree() {
   const childToParent = {};  // childId → parentId
   const parentToChildren = {}; // parentId → [childIds]
 
-  RDOD_DATA.forEach(d => {
+  allDomains().forEach(d => {
     const parentId = stripPrefix(d.id);
     const subs = getList(d, 'subdomains');
     subs.forEach(ref => {
@@ -365,8 +369,7 @@ function buildTree() {
   });
 
   // Roots: domains that are no one's subdomain
-  const roots = RDOD_DATA
-    .map(d => stripPrefix(d.id))
+  const roots = Object.keys(RDOD_DATA)
     .filter(id => !childToParent[id])
     .sort();
 
@@ -382,7 +385,7 @@ function renderSidebar(filter) {
 
   if (q) {
     // Search mode: flat filtered list
-    const items = RDOD_DATA
+    const items = allDomains()
       .filter(d => (d.id || '').toLowerCase().includes(q) || (d.name || '').toLowerCase().includes(q))
       .sort((a, b) => (a.id || '').localeCompare(b.id || ''));
 
@@ -1046,15 +1049,16 @@ function renderInfo(domain) {
 // ── Init ──────────────────────────────────────────────────────────────────────
 
 function init() {
-  if (RDOD_DATA.length === 0) {
+  const keys = Object.keys(RDOD_DATA);
+  if (keys.length === 0) {
     document.getElementById('info-panel').innerHTML = '<div class="empty-msg">No domain data loaded.</div>';
     return;
   }
   renderSidebar();
-  // Navigate to first domain
-  const first = RDOD_DATA[0];
+  // Navigate to first domain (alphabetically)
+  const firstKey = keys.sort()[0];
   navHistory = [];
-  navigateTo(first.id);
+  navigateTo(firstKey);
 }
 
 init();

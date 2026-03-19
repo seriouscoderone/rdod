@@ -71,10 +71,18 @@ def enrich_domain(data, domain_dir):
     return data
 
 
+def strip_prefix(ref):
+    """Remove URI scheme prefix (e.g., 'domain://video-editing' → 'video-editing')."""
+    if "://" in ref:
+        return ref.split("://", 1)[1]
+    return ref
+
+
 def build_data(domains_dir):
-    """Collect all valid domain dicts from domains_dir, enriched with companion files."""
+    """Collect all valid domain dicts from domains_dir, enriched with companion files.
+    Returns a dict keyed by stripped domain ID."""
     files = find_domain_files(domains_dir)
-    domains = []
+    domains = {}
     for path in sorted(files):
         data = load_domain(path)
         if data is None:
@@ -86,7 +94,8 @@ def build_data(domains_dir):
         # Enrich with companion files from the same directory
         domain_dir = str(Path(path).parent)
         enrich_domain(data, domain_dir)
-        domains.append(data)
+        key = strip_prefix(data.get("id", ""))
+        domains[key] = data
     return domains
 
 
@@ -97,7 +106,7 @@ def generate(domains_dir, output, template_path):
     if not domains:
         print("No domain.yaml files found — nothing to generate.", file=sys.stderr)
         sys.exit(1)
-    print(f"Found {len(domains)} domain(s): {[d.get('id','?') for d in domains]}")
+    print(f"Found {len(domains)} domain(s): {list(domains.keys())}")
 
     # Read template
     try:
