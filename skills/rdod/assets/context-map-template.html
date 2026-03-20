@@ -94,6 +94,15 @@
   #domain-list .tree-toggle:hover { color: #aaa; }
   #domain-list .tree-toggle.leaf { visibility: hidden; }
   #domain-list .tree-name { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+  #domain-list .term-count {
+    font-size: 9px;
+    background: #333;
+    color: #888;
+    border-radius: 8px;
+    padding: 1px 5px;
+    margin-left: 4px;
+    flex-shrink: 0;
+  }
   #domain-list .tree-children { display: block; }
   #domain-list .tree-children.collapsed { display: none; }
   #domain-list li[data-depth="0"] .tree-label { padding-left: 8px; }
@@ -345,6 +354,7 @@ function navigateTo(id) {
   const clean = stripPrefix(id);
   if (currentId) navHistory.push(currentId);
   currentId = clean;
+  expandPathTo(clean);
   renderSidebar();
   renderBreadcrumb();
   const domain = getDomain(clean);
@@ -402,7 +412,38 @@ function buildTree() {
   return { roots, parentToChildren };
 }
 
+// Initialize all parent nodes as collapsed — user expands what they want
 let collapsedNodes = new Set();
+let _treeInitialized = false;
+
+function initCollapsed() {
+  if (_treeInitialized) return;
+  const { parentToChildren } = buildTree();
+  Object.keys(parentToChildren).forEach(k => {
+    if (parentToChildren[k].length > 0) collapsedNodes.add(k);
+  });
+  _treeInitialized = true;
+}
+
+// Auto-expand ancestors so the target domain is visible in the tree
+function expandPathTo(id) {
+  // Use ID prefix segments as ancestor path (e.g., "keri/event-log/escrow" → expand "keri", "keri/event-log")
+  const parts = id.split('/');
+  for (let i = 1; i < parts.length; i++) {
+    collapsedNodes.delete(parts.slice(0, i).join('/'));
+  }
+  // Also check declared subdomain relationships (in case IDs don't encode hierarchy)
+  const { parentToChildren } = buildTree();
+  const childToParent = {};
+  Object.entries(parentToChildren).forEach(([p, children]) => {
+    children.forEach(c => { childToParent[c] = p; });
+  });
+  let cur = id;
+  while (childToParent[cur]) {
+    collapsedNodes.delete(childToParent[cur]);
+    cur = childToParent[cur];
+  }
+}
 
 function renderSidebar(filter) {
   const list = document.getElementById('domain-list');
@@ -430,7 +471,14 @@ function renderSidebar(filter) {
       const nameSpan = document.createElement('span');
       nameSpan.className = 'tree-name';
       nameSpan.textContent = d.name || clean;
+      const tc = (d.ubiquitous_language || []).filter(t => t && t.term).length;
       label.appendChild(nameSpan);
+      if (tc > 0) {
+        const badge = document.createElement('span');
+        badge.className = 'term-count';
+        badge.textContent = tc;
+        label.appendChild(badge);
+      }
       li.appendChild(label);
       li.title = clean;
       if (clean === currentId) li.classList.add('active');
@@ -441,6 +489,7 @@ function renderSidebar(filter) {
   }
 
   // Tree mode: hierarchical view
+  initCollapsed();
   const { roots, parentToChildren } = buildTree();
 
   function renderNode(id, depth) {
@@ -472,8 +521,16 @@ function renderSidebar(filter) {
     nameSpan.className = 'tree-name';
     nameSpan.textContent = d.name || id;
 
+    const termCount = (d.ubiquitous_language || []).filter(t => t && t.term).length;
     label.appendChild(toggle);
     label.appendChild(nameSpan);
+    if (termCount > 0) {
+      const badge = document.createElement('span');
+      badge.className = 'term-count';
+      badge.textContent = termCount;
+      badge.title = `${termCount} term${termCount === 1 ? '' : 's'}`;
+      label.appendChild(badge);
+    }
     li.appendChild(label);
     li.title = id;
     if (id === currentId) li.classList.add('active');
