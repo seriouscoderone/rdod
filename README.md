@@ -24,8 +24,9 @@ Analyzes an existing codebase and produces structured domain maps:
 1. Inventories all modules and their dependencies
 2. Classifies each as a domain with typed relationships (client, subdomain, kernel, adjacent, external)
 3. Extracts ubiquitous language, invariants, and ports
-4. Surfaces architectural issues (inverted dependencies, kernel pollution, language inconsistencies)
-5. Produces an interactive HTML context map
+4. Detects cross-term structural patterns (e.g., 7 escrow types sharing the same trigger/storage/timeout structure)
+5. Surfaces architectural issues (inverted dependencies, kernel pollution, language inconsistencies)
+6. Produces an interactive HTML context map
 
 Output goes to `rdod/analysis/domains/`.
 
@@ -33,17 +34,19 @@ Output goes to `rdod/analysis/domains/`.
 
 Generates domain specifications through an iterative expansion loop:
 
-1. Start from a seed: a description, domain documents, or requirements
+1. Start from a seed: a description, domain documents, reference libraries, or requirements
 2. Discover domain concepts, relationships, and boundaries
 3. Fill domain.yaml files with language, invariants, ports, and neighbor relationships
-4. Verify completeness and cross-references
-5. Produces the same interactive HTML context map
+4. Detect structural patterns across terms and extract them as reusable pattern definitions
+5. Optionally formalize invariants for verification harnesses
+6. Verify completeness and cross-references
+7. Produces the same interactive HTML context map
 
 Output goes to `rdod/spec/domains/`.
 
 ## Core Concepts
 
-**Everything is a domain.** The terms "subdomain" and "domain client" are relative viewpoints — entering any subdomain makes it "the domain" with its own subdomains and clients.
+**Everything is a domain.** The terms "subdomain" and "domain client" are relative viewpoints — entering any subdomain makes it "the domain" with its own subdomains and clients. Aggregates are simply domains that compose sub-concepts.
 
 **5 Neighbor Types:**
 
@@ -55,19 +58,26 @@ Output goes to `rdod/spec/domains/`.
 | Adjacent | Lateral (peer) | Collaborator — neither side controls the other |
 | External | Encapsulated | Infra/IO hidden behind a domain-owned interface |
 
+**The control test:** "Can this domain tell the dependency what to do?" If yes → subdomain. If it's a negotiation between equals → adjacent.
+
 **Context Map Patterns** for adjacent relationships: Partnership, Shared Kernel, Customer-Supplier, Conformist, ACL, OHS + Published Language, Separate Ways.
 
 ## Output Format
 
-Three YAML files per domain:
+Four YAML files per domain (verification is optional):
 
-- **`domain.yaml`** — Identity, ubiquitous language, neighbor relationships, issues
-- **`ubiquitous-language.yaml`** — Expanded terms, events, cross-term rules
-- **`ports.yaml`** — Inbound and outbound interfaces with contracts
+| File | Purpose |
+|------|---------|
+| **`domain.yaml`** | Identity, ubiquitous language, neighbor relationships, issues |
+| **`ubiquitous-language.yaml`** | Expanded terms with synonyms, examples, events, cross-term rules |
+| **`ports.yaml`** | Inbound and outbound interfaces with contracts |
+| **`verification.yaml`** | Formalized invariants, port contracts, state machines (optional) |
 
 All refs use URI-style strings: `domain://video-editing`, `port://video-editing/inbound/editing-api`, `kernel://color-lib`.
 
-## Context Map Generator
+A JSON schema (`assets/rdod-data.schema.json`) defines the full structure of the generated context map data, validated at generation time via AJV.
+
+## Context Map Viewer
 
 After producing domain files, generate a standalone HTML browser:
 
@@ -78,6 +88,41 @@ python skills/ddd-spec/scripts/generate_context_map.py rdod/spec/domains
 ```
 
 Requires Python + PyYAML. Opens in any browser — no server needed.
+
+Features:
+- **Hierarchical tree sidebar** built from subdomain ownership (collapsed by default, auto-expands on navigation)
+- **Full-text search** across all domain fields (terms, invariants, descriptions, ports, issues)
+- **Term count badges** showing vocabulary richness per domain
+- **Interactive graph** with color-coded neighbor types (click to navigate)
+- **Complete info panel** showing all template data: language with invariants, neighbors with relationships, ports, events, rules, issues, code locations, implementation guidance, and source material
+- **AJV schema validation** on page load (results in browser console)
+- **Breadcrumb navigation** with back button
+
+## Domain-Driven Verification (optional)
+
+Domain invariants are the natural inputs to formal verification. The toolkit bridges domain specs to three verification techniques:
+
+| Domain concept | Verification technique |
+|---|---|
+| Term invariants | Property-Based Testing (Hypothesis, fast-check) |
+| Port contracts (pre/postconditions) | SMT Solvers (Z3, CrossHair) |
+| Ordered behavior / state machines | Symbolic Execution (Dafny, KLEE) |
+
+Add `verification.yaml` to formalize invariants as machine-executable expressions. An AI implementing from the spec gets both the blueprint AND the verification criteria.
+
+See `references/verification.md` in either skill for the full methodology.
+
+## Comparing Analysis vs Design
+
+Run both skills on the same project:
+
+```
+rdod/
+  analysis/domains/    ← RDOD output (what the code IS)
+  spec/domains/        ← ddd-spec output (what it SHOULD be)
+```
+
+The delta between the two directories is your refactoring roadmap.
 
 ## License
 
