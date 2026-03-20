@@ -142,6 +142,15 @@
             "type": "string"
           }
         },
+        "_verification": {
+          "type": "object",
+          "description": "Enriched from verification.yaml — formalized invariants, contracts, state machines",
+          "properties": {
+            "properties": { "type": "array", "items": { "type": "object" } },
+            "contracts": { "type": "array", "items": { "type": "object" } },
+            "state_machines": { "type": "array", "items": { "type": "object" } }
+          }
+        },
         "_source": {
           "type": "string",
           "description": "File path of the source domain.yaml (debugging)"
@@ -155,8 +164,13 @@
         "definition": { "type": "string", "description": "Precise meaning in this domain" },
         "invariants": {
           "type": "array",
-          "items": { "type": "string" },
-          "description": "Rules that must always hold for this term"
+          "description": "Rules that must always hold for this term. Items can be plain strings or structured objects with formal expressions.",
+          "items": {
+            "oneOf": [
+              { "type": "string" },
+              { "$ref": "#/$defs/formalInvariant" }
+            ]
+          }
         },
         "pattern": { "type": "string", "description": "Name of a pattern term this is an instance of" },
         "synonyms": {
@@ -170,6 +184,25 @@
         "related_terms": {
           "type": "array",
           "items": { "type": "string" }
+        }
+      }
+    },
+    "formalInvariant": {
+      "type": "object",
+      "description": "An invariant with an optional machine-executable formal expression",
+      "properties": {
+        "text": { "type": "string", "description": "Natural language invariant" },
+        "formal": {
+          "type": "object",
+          "properties": {
+            "language": { "type": "string", "description": "python | typescript | z3 | dafny" },
+            "expression": { "type": "string", "description": "Machine-executable expression" }
+          }
+        },
+        "technique": {
+          "type": "string",
+          "description": "Verification technique",
+          "enum": ["property-based", "smt", "symbolic"]
         }
       }
     },

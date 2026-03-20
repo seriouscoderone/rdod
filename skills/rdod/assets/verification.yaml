@@ -1,0 +1,43 @@
+# Formalized verification mappings for a domain.
+# Maps natural-language invariants and contracts to machine-executable expressions.
+# Consumed by external verification harnesses (property-based testing, SMT solvers, symbolic execution).
+domain_ref: ""
+
+# Formalized invariants from ubiquitous_language terms
+properties: []
+# - invariant: ""            # natural language invariant from domain.yaml
+#   term: ""                 # which term this belongs to
+#   technique: ""            # property-based | smt | symbolic
+#   formal:
+#     language: ""           # python | typescript | rust | z3 | dafny
+#     expression: ""         # machine-executable expression
+#   strategy: ""             # hypothesis strategy or input generator (property-based only)
+#   notes: ""
+
+# Formalized port contracts (pre/postconditions)
+contracts: []
+# - port_ref: ""             # port://<domain-id>/<direction>/<name>
+#   preconditions:
+#     - formal:
+#         language: ""
+#         expression: ""
+#       description: ""
+#   postconditions:
+#     - formal:
+#         language: ""
+#         expression: ""
+#       description: ""
+
+# State machine specifications (for ordered/stateful domains)
+state_machines: []
+# - name: ""
+#   term: ""                 # which term this models
+#   states: []
+#   transitions:
+#     - from: ""
+#       to: ""
+#       trigger: ""
+#       guard: ""
+#   invariants: []
+#   initial_state: ""
+#   terminal_states: []

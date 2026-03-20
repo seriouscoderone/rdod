@@ -187,6 +187,22 @@ Flag any architectural concerns discovered during this domain's expansion:
 
 Use `rationale` instead of `evidence` — explain why it's a concern, since there's no code to point at.
 
+#### 5f — Verification readiness (optional)
+
+For domains with critical invariants, formalize them for verification harnesses:
+
+1. **Classify each invariant.** Is it a value constraint (→ property-based testing), a boundary condition (→ SMT/Z3), or a state transition rule (→ symbolic execution)? Use the classification rule in `references/verification.md`.
+
+2. **Write formal expressions** for the highest-priority invariants. Start with property-based (easiest to formalize). Only escalate to SMT or symbolic for invariants that involve boundaries, overflow, or temporal ordering.
+
+3. **Formalize port contracts** as pre/postconditions. Each inbound port should have: what must be true about inputs (precondition) and what is guaranteed about outputs (postcondition).
+
+4. **Extract state machines** for ordered terms. If a term has lifecycle transitions, model the states, transitions, guards, and invariants.
+
+5. Fill `verification.yaml` for this domain.
+
+This step is optional — skip for domains with simple, self-evident invariants. Prioritize it for core domains with complex behavior (high behavioral weight, many invariants, ordered terms).
+
 ---
 
 ### Step 6 — Tick and recurse

@@ -153,7 +153,14 @@ terms:
     synonyms: []
     pattern: ""              # Optional: name of a pattern term this is an instance of
     definition: "<precise definition>"
-    invariants: ["<rule that must always hold for this term>"]
+    invariants:              # Rules that must always hold for this term
+      - "<natural language rule>"
+      # Or structured with optional formal expression:
+      # - text: "<natural language rule>"
+      #   formal:
+      #     language: "<python | typescript | z3 | dafny>"
+      #     expression: "<machine-executable expression>"
+      #   technique: "<property-based | smt | symbolic>"
     examples: ["<code snippet or scenario>"]
     related_terms: ["<other term in this domain>"]
 
@@ -189,6 +196,48 @@ ports:
     contract: "<interface signature>"
     protocol: "<method-call | events>"
     refs: ["domain://<subdomain-or-external-id>"]
+```
+
+---
+
+## verification.yaml — Formal verification mappings (optional)
+
+Maps domain invariants and port contracts to machine-executable expressions for external verification harnesses. See `references/verification.md` for the full methodology.
+
+```yaml
+# verification.yaml
+domain_ref: "<domain-id>"
+
+properties:
+  - invariant: "<natural language invariant>"
+    term: "<term name>"
+    technique: "<property-based | smt | symbolic>"
+    formal:
+      language: "<python | typescript | z3 | dafny>"
+      expression: "<machine-executable expression>"
+    strategy: "<input generator for property-based testing>"
+
+contracts:
+  - port_ref: "port://<domain-id>/<direction>/<name>"
+    preconditions:
+      - description: "<natural language>"
+        formal: { language: "<lang>", expression: "<expr>" }
+    postconditions:
+      - description: "<natural language>"
+        formal: { language: "<lang>", expression: "<expr>" }
+
+state_machines:
+  - name: "<state machine name>"
+    term: "<term name>"
+    states: ["<state1>", "<state2>"]
+    transitions:
+      - from: "<state>"
+        to: "<state>"
+        trigger: "<event or condition>"
+        guard: "<condition>"
+    invariants: ["<holds across all states>"]
+    initial_state: "<state>"
+    terminal_states: ["<state>"]
 ```
 
 ---

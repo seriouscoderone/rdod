@@ -68,6 +68,17 @@ def enrich_domain(data, domain_dir):
         if ports_data and isinstance(ports_data, dict):
             data["_ports"] = ports_data.get("ports", [])
 
+    # Load verification.yaml
+    verify_path = Path(domain_dir) / "verification.yaml"
+    if verify_path.exists():
+        verify_data = load_domain(str(verify_path))
+        if verify_data and isinstance(verify_data, dict):
+            data["_verification"] = {
+                "properties": verify_data.get("properties", []),
+                "contracts": verify_data.get("contracts", []),
+                "state_machines": verify_data.get("state_machines", []),
+            }
+
     return data
 
 

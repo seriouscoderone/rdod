@@ -125,6 +125,10 @@ Blank template files ready to copy into a project are in `assets/`.
 
 See `references/crawling.md` for the step-by-step process to detect domains in existing code, fill templates comprehensively, and verify links and cross-references.
 
+## Domain-Driven Verification (optional)
+
+See `references/verification.md` for how to formalize domain invariants, port contracts, and state machines into machine-executable expressions that external harnesses can verify. Maps RDOD concepts to property-based testing, SMT solvers (Z3), and symbolic execution.
+
 ## Quick Usage Guide
 
 **Designing new software:**

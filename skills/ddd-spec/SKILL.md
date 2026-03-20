@@ -119,6 +119,10 @@ Blank template files ready to copy into a project are in `assets/`.
 
 See `references/expansion.md` for the step-by-step expansion loop to discover domains from requirements, user input, or domain documents, fill templates iteratively, and verify completeness.
 
+## Domain-Driven Verification (optional)
+
+See `references/verification.md` for how to formalize domain invariants, port contracts, and state machines into machine-executable expressions. When the spec includes formalized invariants, an AI implementing from the spec gets both the blueprint AND the verification criteria — the spec defines what to build and how to prove it's correct.
+
 ## Quick Usage Guide
 
 **From a seed description:**
