@@ -79,6 +79,27 @@ def enrich_domain(data, domain_dir):
                 "state_machines": verify_data.get("state_machines", []),
             }
 
+    # Load errors.yaml
+    errors_path = Path(domain_dir) / "errors.yaml"
+    if errors_path.exists():
+        errors_data = load_domain(str(errors_path))
+        if errors_data and isinstance(errors_data, dict):
+            data["_errors"] = errors_data.get("errors", [])
+
+    # Load types.yaml
+    types_path = Path(domain_dir) / "types.yaml"
+    if types_path.exists():
+        types_data = load_domain(str(types_path))
+        if types_data and isinstance(types_data, dict):
+            data["_types"] = types_data.get("types", [])
+
+    # Load protocols.yaml
+    protocols_path = Path(domain_dir) / "protocols.yaml"
+    if protocols_path.exists():
+        protocols_data = load_domain(str(protocols_path))
+        if protocols_data and isinstance(protocols_data, dict):
+            data["_protocols"] = protocols_data.get("protocols", [])
+
     return data
 
 

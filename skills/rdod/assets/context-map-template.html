@@ -1133,6 +1133,74 @@ function renderInfo(domain) {
     });
     panel.appendChild(makeSection(`SOURCE MATERIAL (${sources.length})`, srcWrap, true));
   }
+
+  // ── Errors ──
+  const errors = (domain._errors || []).filter(e => e && e.name);
+  if (errors.length > 0) {
+    const errWrap = document.createElement('div');
+    errors.forEach(err => {
+      const item = document.createElement('div');
+      item.className = 'issue-item';
+      let html = `<div style="color:#ff6b6b;font-weight:600;margin-bottom:2px">${esc(err.name)}</div>`;
+      if (err.description) html += `<div style="color:#ccc;font-size:12px">${esc(err.description)}</div>`;
+      const meta = [];
+      if (err.severity) meta.push(`severity: ${esc(err.severity)}`);
+      if (err.recovery) meta.push(`recovery: ${esc(err.recovery)}`);
+      if (err.related_port) meta.push(esc(err.related_port));
+      if (meta.length) html += `<div style="color:#888;font-size:10px;margin-top:2px">${meta.join(' | ')}</div>`;
+      if (err.cause) html += `<div style="color:#e67e22;font-size:11px;margin-top:2px">cause: ${esc(err.cause)}</div>`;
+      item.innerHTML = html;
+      errWrap.appendChild(item);
+    });
+    panel.appendChild(makeSection(`ERRORS (${errors.length})`, errWrap, true));
+  }
+
+  // ── Types ──
+  const types = (domain._types || []).filter(t => t && t.name);
+  if (types.length > 0) {
+    const typesWrap = document.createElement('div');
+    types.forEach(t => {
+      const item = document.createElement('div');
+      item.className = 'issue-item';
+      let html = `<div style="color:#4a90d9;font-weight:600;margin-bottom:2px">${esc(t.name)}</div>`;
+      if (t.description) html += `<div style="color:#ccc;font-size:12px">${esc(t.description)}</div>`;
+      const variants = (t.variants || []);
+      if (variants.length > 0) {
+        variants.forEach(v => {
+          html += `<div style="color:#9b59b6;font-size:11px;margin-top:3px">variant: ${esc(v.name || 'default')}</div>`;
+          (v.fields || []).forEach(f => {
+            const req = f.required ? '' : ' (optional)';
+            html += `<div style="color:#888;font-size:11px;padding-left:12px">${esc(f.name)}: <span style="color:#5cb85c">${esc(f.type || '')}</span>${req}</div>`;
+          });
+        });
+      }
+      item.innerHTML = html;
+      typesWrap.appendChild(item);
+    });
+    panel.appendChild(makeSection(`TYPES (${types.length})`, typesWrap, true));
+  }
+
+  // ── Protocols ──
+  const protocols = (domain._protocols || []).filter(p => p && p.name);
+  if (protocols.length > 0) {
+    const protoWrap = document.createElement('div');
+    protocols.forEach(p => {
+      const item = document.createElement('div');
+      item.className = 'issue-item';
+      let html = `<div style="color:#f5c518;font-weight:600;margin-bottom:2px">${esc(p.name)}</div>`;
+      if (p.description) html += `<div style="color:#ccc;font-size:12px">${esc(p.description)}</div>`;
+      if (p.participants && p.participants.length) {
+        html += `<div style="color:#888;font-size:10px;margin-top:3px">participants: ${p.participants.map(pt => esc(pt.domain || '')).join(', ')}</div>`;
+      }
+      (p.steps || []).forEach(s => {
+        html += `<div style="font-size:11px;margin-top:2px;padding-left:8px"><span style="color:#555">${s.seq}.</span> <span style="color:#4a90d9">${esc(s.domain || '')}</span> → ${esc(s.action || '')}</div>`;
+      });
+      if (p.timeout) html += `<div style="color:#888;font-size:10px;margin-top:2px">timeout: ${esc(p.timeout)}</div>`;
+      item.innerHTML = html;
+      protoWrap.appendChild(item);
+    });
+    panel.appendChild(makeSection(`PROTOCOLS (${protocols.length})`, protoWrap, true));
+  }
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────

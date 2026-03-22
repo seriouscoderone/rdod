@@ -200,6 +200,103 @@ ports:
 
 ---
 
+## errors.yaml — Error taxonomy (optional)
+
+Consolidated error catalog per domain. Every error this domain can produce, with structured cause, recovery strategy, severity, and context fields. Enables AI code generators to produce exhaustive error handling.
+
+```yaml
+# errors.yaml
+domain_ref: "<domain-id>"
+
+errors:
+  - name: "<ErrorName>"
+    description: "<when this error occurs>"
+    cause: "<specific condition that triggers it>"
+    recovery: "<retry | escrow | escalate | abort>"
+    severity: "<fatal | recoverable | transient>"
+    context:
+      - field: "<field_name>"
+        type: "<field_type>"
+        description: "<what this tells the caller>"
+    related_port: "port://<domain-id>/inbound/<operation>"
+```
+
+---
+
+## types.yaml — Formal data structure definitions (optional)
+
+Machine-parseable type schemas with fields, constraints, variants, and encoding rules. Enables AI code generators to produce type definitions, validation logic, and serialization directly — no prose interpretation needed.
+
+```yaml
+# types.yaml
+domain_ref: "<domain-id>"
+
+types:
+  - name: "<TypeName>"
+    description: "<what this type represents>"
+    variants:
+      - name: "<variant_name>"
+        fields:
+          - name: "<field_name>"
+            type: "<string | integer | float | boolean | bytes | array[T] | map | TypeRef>"
+            required: true
+            constraints:
+              min: "<value>"
+              max: "<value>"
+              pattern: "<regex>"
+              enum: ["<value1>", "<value2>"]
+            description: "<what this field means>"
+        invariants:
+          - "<constraint specific to this variant>"
+    default_variant: "<variant_name>"
+    construction_defaults:
+      "<field_name>": "<default_value_or_algorithm>"
+    encoding:
+      - format: "<json | cbor | cesr | msgpack | protobuf>"
+        notes: "<encoding-specific rules>"
+```
+
+---
+
+## protocols.yaml — Cross-domain orchestration (optional)
+
+End-to-end flows spanning multiple domains with step ordering, failure paths, and compensation logic. Enables AI code generators to produce orchestration code, saga/process managers, timeout handling, and rollback.
+
+```yaml
+# protocols.yaml
+domain_ref: "<domain-id>"
+
+protocols:
+  - name: "<ProtocolName>"
+    description: "<what this end-to-end flow accomplishes>"
+    participants:
+      - domain: "domain://<participant-id>"
+        role: "<what this domain does>"
+    trigger: "<what initiates this protocol>"
+    steps:
+      - seq: 1
+        domain: "domain://<participant-id>"
+        action: "<operation_name>"
+        port: "port://<domain-id>/inbound/<operation>"
+        input: "<what goes in>"
+        output: "<what comes out>"
+        on_failure:
+          - error: "<ErrorType>"
+            action: "<escrow | retry | abort | compensate>"
+            compensation: "<what to undo>"
+      - seq: 2
+        domain: "domain://<participant-id>"
+        action: "<next_operation>"
+        depends_on: [1]
+    timeout: "<duration>"
+    compensation: "<global rollback if partial failure>"
+    terminal_states:
+      success: "<what done looks like>"
+      failure: "<what failed looks like>"
+```
+
+---
+
 ## verification.yaml — Formal verification mappings (optional)
 
 Maps domain invariants and port contracts to machine-executable expressions for external verification harnesses. See `references/verification.md` for the full methodology.

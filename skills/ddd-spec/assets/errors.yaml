@@ -1,0 +1,15 @@
+# Error taxonomy for a domain.
+# Every error this domain can produce, with cause, recovery strategy, and context.
+domain_ref: ""
+
+errors: []
+# - name: ""                # e.g., "OutOfOrderError"
+#   description: ""         # human-readable: when does this error occur?
+#   cause: ""               # the specific condition that triggers it
+#   recovery: ""            # retry | escrow | escalate | abort
+#   severity: ""            # fatal | recoverable | transient
+#   context:                # fields included with this error for the caller
+#     - field: ""
+#       type: ""
+#       description: ""
+#   related_port: ""        # port://domain/inbound/operation that produces this

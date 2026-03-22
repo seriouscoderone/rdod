@@ -151,6 +151,21 @@
             "state_machines": { "type": "array", "items": { "type": "object" } }
           }
         },
+        "_errors": {
+          "type": "array",
+          "description": "Enriched from errors.yaml — error taxonomy",
+          "items": { "$ref": "#/$defs/domainError" }
+        },
+        "_types": {
+          "type": "array",
+          "description": "Enriched from types.yaml — formal data structure definitions",
+          "items": { "$ref": "#/$defs/domainType" }
+        },
+        "_protocols": {
+          "type": "array",
+          "description": "Enriched from protocols.yaml — cross-domain orchestration sequences",
+          "items": { "$ref": "#/$defs/protocol" }
+        },
         "_source": {
           "type": "string",
           "description": "File path of the source domain.yaml (debugging)"
@@ -326,6 +341,126 @@
         "name": { "type": "string" },
         "payload": { "type": "string", "description": "Field: type descriptions" },
         "triggers": { "type": "string", "description": "What causes this event" }
+      }
+    },
+    "domainError": {
+      "type": "object",
+      "description": "An error this domain can produce",
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "cause": { "type": "string", "description": "Specific condition that triggers this error" },
+        "recovery": { "type": "string", "description": "retry | escrow | escalate | abort" },
+        "severity": { "type": "string", "enum": ["fatal", "recoverable", "transient"] },
+        "context": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "field": { "type": "string" },
+              "type": { "type": "string" },
+              "description": { "type": "string" }
+            }
+          }
+        },
+        "related_port": { "type": "string", "description": "port:// ref to the operation that produces this error" }
+      }
+    },
+    "domainType": {
+      "type": "object",
+      "description": "A formal data structure definition",
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "variants": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "fields": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": { "type": "string" },
+                    "type": { "type": "string" },
+                    "required": { "type": "boolean" },
+                    "constraints": { "type": "object" },
+                    "description": { "type": "string" }
+                  }
+                }
+              },
+              "invariants": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "default_variant": { "type": "string" },
+        "construction_defaults": { "type": "object" },
+        "encoding": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "format": { "type": "string" },
+              "notes": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "protocol": {
+      "type": "object",
+      "description": "A cross-domain orchestration sequence",
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "participants": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "domain": { "type": "string" },
+              "role": { "type": "string" }
+            }
+          }
+        },
+        "trigger": { "type": "string" },
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "seq": { "type": "integer" },
+              "domain": { "type": "string" },
+              "action": { "type": "string" },
+              "port": { "type": "string" },
+              "input": { "type": "string" },
+              "output": { "type": "string" },
+              "depends_on": { "type": "array", "items": { "type": "integer" } },
+              "on_failure": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "action": { "type": "string" },
+                    "compensation": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "timeout": { "type": "string" },
+        "compensation": { "type": "string" },
+        "terminal_states": {
+          "type": "object",
+          "properties": {
+            "success": { "type": "string" },
+            "failure": { "type": "string" }
+          }
+        }
       }
     }
   }

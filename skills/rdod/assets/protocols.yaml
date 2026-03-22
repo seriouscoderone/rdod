@@ -1,0 +1,31 @@
+# Cross-domain orchestration sequences.
+# End-to-end flows spanning multiple domains with step ordering, failure paths, and compensation.
+domain_ref: ""
+
+protocols: []
+# - name: ""                # e.g., "MultisigRotation"
+#   description: ""         # what this end-to-end flow accomplishes
+#   participants:
+#     - domain: ""          # domain://participant-id
+#       role: ""            # what this domain does in the protocol
+#   trigger: ""             # what initiates this protocol
+#   steps:
+#     - seq: 1
+#       domain: ""          # domain://participant-id
+#       action: ""          # operation name
+#       port: ""            # port://domain/inbound/operation
+#       input: ""           # what goes in
+#       output: ""          # what comes out
+#       on_failure:
+#         - error: ""       # ErrorType from errors.yaml
+#           action: ""      # escrow | retry | abort | compensate
+#           compensation: "" # what to undo if needed
+#     - seq: 2
+#       domain: ""
+#       action: ""
+#       depends_on: [1]     # must complete after step 1
+#   timeout: ""             # duration after which the protocol fails
+#   compensation: ""        # global rollback if protocol fails after partial completion
+#   terminal_states:
+#     success: ""           # what 'done' looks like
+#     failure: ""           # what 'failed' looks like

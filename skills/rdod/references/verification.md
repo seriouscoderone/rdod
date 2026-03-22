@@ -54,6 +54,36 @@ Is the invariant about a single value/input?
 
 ---
 
+## Invariant Quality Rubric
+
+Not all invariants are equally useful for verification. Rate each invariant against this rubric and strengthen weak ones before formalizing.
+
+| Rating | Criteria | Example |
+|---|---|---|
+| **Strong** | Precise bounds, testable, specifies error path | "If sn > expected, route to OOE escrow within 100ms" |
+| **Adequate** | Measurable but incomplete error handling | "Sequence numbers must increase monotonically" |
+| **Weak** | Descriptive, not prescriptive | "Events are processed in order" |
+| **Vague** | Uses may/can/should without conditions | "The system should handle events properly" |
+
+**Rules for AI-implementable invariants:**
+
+1. **Testable** — An AI must be able to translate every property into an assertion. If a property uses "properly", "correctly", or "valid" without defining what those mean, it is incomplete.
+2. **Boundary-aware** — Properties must specify behavior at edges: empty inputs, zero values, maximum values, single-element collections.
+3. **Error-path-aware** — Properties must specify what happens when the happy path fails, not just what happens when everything works. Cross-reference `errors.yaml` for specific error types.
+4. **Falsifiable** — Every property must have a conceivable scenario that would violate it. If no violation is conceivable, the property is either trivially true or too vague.
+
+When writing formal expressions, always declare the language:
+
+```yaml
+formal:
+  language: "python"   # or "pseudocode" | "typescript" | "rust" | "z3" | "dafny"
+  expression: "len(timeline.clips) >= 1"
+```
+
+This tells AI code generators to translate the example rather than copy it verbatim.
+
+---
+
 ## verification.yaml Template
 
 One per domain. Maps invariants and contracts to formal verification.

@@ -1,0 +1,26 @@
+# Formal data structure definitions for a domain.
+# Machine-parseable type schemas with fields, constraints, variants, and encoding rules.
+domain_ref: ""
+
+types: []
+# - name: ""                # e.g., "KeyEvent"
+#   description: ""         # what this type represents in the domain
+#   variants:
+#     - name: ""            # e.g., "inception" or "rotation"
+#       fields:
+#         - name: ""
+#           type: ""        # string | integer | float | boolean | bytes | array[T] | map | TypeRef
+#           required: true
+#           constraints:
+#             min:           # minimum value or length
+#             max:           # maximum value or length
+#             pattern: ""   # regex pattern
+#             enum: []      # allowed values
+#           description: ""
+#       invariants: []      # constraints specific to this variant
+#   default_variant: ""     # which variant is assumed if unspecified
+#   construction_defaults:  # default values or algorithms for fields
+#     field_name: ""
+#   encoding:               # serialization rules
+#     - format: ""          # json | cbor | cesr | msgpack | protobuf
+#       notes: ""
