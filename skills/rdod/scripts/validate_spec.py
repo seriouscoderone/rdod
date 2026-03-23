@@ -96,24 +96,13 @@ class DomainSpec:
 
     @property
     def terms(self):
-        # Primary: ubiquitous-language.yaml (authoritative)
-        lang_terms = [t for t in self.lang_data.get("terms", [])
-                      if isinstance(t, dict) and t.get("term")]
-        if lang_terms:
-            return lang_terms
-        # Fallback: domain.yaml (backward compatibility)
-        return [t for t in self.data.get("ubiquitous_language", [])
+        """Read terms from ubiquitous-language.yaml (sole source of truth)."""
+        return [t for t in self.lang_data.get("terms", [])
                 if isinstance(t, dict) and t.get("term")]
 
     @property
     def term_names(self):
         return [t["term"] for t in self.terms]
-
-    @property
-    def has_deprecated_ul(self):
-        """True if domain.yaml still has ubiquitous_language entries."""
-        inline = self.data.get("ubiquitous_language", [])
-        return bool(inline and any(isinstance(t, dict) and t.get("term") for t in inline))
 
     @property
     def published_language(self):
@@ -376,10 +365,6 @@ def check_completeness(specs, result):
         if not spec.terms and intent not in ("adapter", "facade", "thin"):
             result.warn("completeness", sid, "no ubiquitous language terms defined")
 
-        # Deprecation nudge: ubiquitous_language in domain.yaml should migrate to UL file
-        if spec.has_deprecated_ul:
-            result.warn("completeness", sid,
-                "domain.yaml contains ubiquitous_language section — migrate terms to ubiquitous-language.yaml")
 
 
 def check_term_uniqueness(specs, result):

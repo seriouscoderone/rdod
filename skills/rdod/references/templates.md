@@ -22,10 +22,6 @@ published_language: []
 # - term: "<term>"
 #   description: "<why this term is exported>"
 
-# DEPRECATED — define terms in ubiquitous-language.yaml instead (single source of truth)
-# Kept for backward compatibility; the linter and generator read the UL file as primary.
-ubiquitous_language: []
-
 # Upstream: who uses me?
 domain_clients:
   - ref: "domain://<client-id>"

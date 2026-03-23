@@ -10,9 +10,6 @@ published_language: []
 # - term: ""                # term name from ubiquitous_language
 #   description: ""         # why this term is exported
 
-# DEPRECATED — define terms in ubiquitous-language.yaml instead (single source of truth)
-ubiquitous_language: []
-
 # Upstream: who uses me?
 domain_clients: []
 # - ref: "domain://<client-id>"

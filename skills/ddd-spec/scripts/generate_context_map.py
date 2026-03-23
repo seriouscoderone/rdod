@@ -50,26 +50,11 @@ def enrich_domain(data, domain_dir):
             data["_rules"] = lang_data.get("rules", [])
             data["_imports"] = lang_data.get("imports", [])
 
-            # UL file is the authoritative source for terms.
-            # If the UL file has terms, use them as primary (replacing domain.yaml inline terms).
-            # Fall back to domain.yaml inline terms only if UL file has none.
+            # UL file is the sole source of truth for terms
             ul_terms = [t for t in lang_data.get("terms", [])
                         if isinstance(t, dict) and t.get("term")]
             if ul_terms:
-                # UL file is authoritative — use its terms, merge any extra from domain.yaml
-                inline_terms = {t["term"]: t for t in data.get("ubiquitous_language", [])
-                                if isinstance(t, dict) and t.get("term")}
-                for term in ul_terms:
-                    # If domain.yaml has a brief entry, merge any fields it has that UL file lacks
-                    if term["term"] in inline_terms:
-                        brief = inline_terms[term["term"]]
-                        for key in ("definition", "invariants"):
-                            if key in brief and brief[key] and not term.get(key):
-                                term[key] = brief[key]
                 data["ubiquitous_language"] = ul_terms
-            else:
-                # No UL file terms — keep domain.yaml inline terms as-is
-                pass
 
     # Load ports.yaml
     ports_path = Path(domain_dir) / "ports.yaml"
