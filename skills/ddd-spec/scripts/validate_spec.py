@@ -204,15 +204,8 @@ def check_mirror_consistency(specs, result):
             kernel_domains.add(clean)
 
     for sid, spec in specs.items():
-        for ref in spec.clients:
-            clean = strip_prefix(ref)
-            if clean in specs:
-                other = specs[clean]
-                other_subs = [strip_prefix(r) for r in other.subdomains]
-                other_adjs = [strip_prefix(r) for r in other.adjacents]
-                if sid not in other_subs and sid not in other_adjs:
-                    result.warn("relationships", sid,
-                        f"lists '{clean}' as client, but '{clean}' does not list '{sid}' in subdomains or adjacents")
+        # domain_clients: one-way by nature — upstream serves clients, doesn't enumerate them
+        # Only check subdomains (parent→child requires child→parent back-ref)
 
         for ref in spec.subdomains:
             clean = strip_prefix(ref)
@@ -224,21 +217,25 @@ def check_mirror_consistency(specs, result):
                         f"lists '{clean}' as subdomain, but '{clean}' does not list '{sid}' as client")
 
         # Adjacents — respect pattern field for one-way relationships
-        ONE_WAY_PATTERNS = {"conformist", "anticorruption-layer", "acl", "published-language", "ohs"}
+        # Normalize: "Customer-Supplier" → "customer-supplier", "Published Language" → "published language"
+        ONE_WAY_KEYWORDS = {"conformist", "customer", "supplier", "published", "anticorruption", "acl", "ohs"}
         for adj_item in spec.data.get("adjacents", []):
             if isinstance(adj_item, str):
                 adj_ref = adj_item
                 pattern = ""
             else:
                 adj_ref = adj_item.get("ref", "")
-                pattern = (adj_item.get("pattern", "") or adj_item.get("relationship", "")).lower()
+                # Read pattern: field first, fall back to relationship: field
+                pattern = (adj_item.get("pattern", "") or adj_item.get("relationship", ""))
+                pattern = pattern.lower().replace("-", " ").replace("_", " ")
 
             clean = strip_prefix(adj_ref)
             if clean not in specs:
                 continue
 
             # Skip bidirectional check for one-way patterns
-            if any(p in pattern for p in ONE_WAY_PATTERNS):
+            pattern_words = set(pattern.split())
+            if pattern_words & ONE_WAY_KEYWORDS:
                 continue
 
             # Skip if the other domain is consumed as a kernel by anyone
