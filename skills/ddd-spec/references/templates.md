@@ -27,11 +27,9 @@ published_language: []
 # - term: "<term>"
 #   description: "<why this term is exported>"
 
-# Core language — brief here; expand in ubiquitous-language.yaml
-ubiquitous_language:
-  - term: "<term>"
-    definition: "<precise meaning in this domain>"
-    invariants: ["<rule>"]  # e.g., "Timeline must contain at least one clip"
+# DEPRECATED — define terms in ubiquitous-language.yaml instead (single source of truth)
+# Kept for backward compatibility; the linter and generator read the UL file as primary.
+ubiquitous_language: []
 
 # Upstream: who uses me?
 domain_clients:
