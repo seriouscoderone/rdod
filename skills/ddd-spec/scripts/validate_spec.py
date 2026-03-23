@@ -194,7 +194,15 @@ def check_ref_resolution(specs, result):
 
 
 def check_mirror_consistency(specs, result):
-    """If A lists B as a client, B should list A in subdomains or adjacents. Adjacents must be symmetric."""
+    """If A lists B as a client, B should list A in subdomains or adjacents. Adjacents respect patterns."""
+    # Build set of domain IDs that are consumed as kernels (one-way, no back-ref needed)
+    kernel_domains = set()
+    for sid, spec in specs.items():
+        for ref in spec.kernels:
+            # kernel refs may be kernel:// or domain://
+            clean = strip_prefix(ref)
+            kernel_domains.add(clean)
+
     for sid, spec in specs.items():
         for ref in spec.clients:
             clean = strip_prefix(ref)
@@ -215,16 +223,34 @@ def check_mirror_consistency(specs, result):
                     result.warn("relationships", sid,
                         f"lists '{clean}' as subdomain, but '{clean}' does not list '{sid}' as client")
 
-        # Adjacents must be symmetric
-        for ref in spec.adjacents:
-            clean = strip_prefix(ref)
-            if clean in specs:
-                other = specs[clean]
-                other_adjs = [strip_prefix(r) for r in other.adjacents]
-                other_clients = [strip_prefix(r) for r in other.clients]
-                if sid not in other_adjs and sid not in other_clients:
-                    result.warn("relationships", sid,
-                        f"lists '{clean}' as adjacent, but '{clean}' does not list '{sid}' in adjacents or domain_clients")
+        # Adjacents — respect pattern field for one-way relationships
+        ONE_WAY_PATTERNS = {"conformist", "anticorruption-layer", "acl", "published-language", "ohs"}
+        for adj_item in spec.data.get("adjacents", []):
+            if isinstance(adj_item, str):
+                adj_ref = adj_item
+                pattern = ""
+            else:
+                adj_ref = adj_item.get("ref", "")
+                pattern = (adj_item.get("pattern", "") or adj_item.get("relationship", "")).lower()
+
+            clean = strip_prefix(adj_ref)
+            if clean not in specs:
+                continue
+
+            # Skip bidirectional check for one-way patterns
+            if any(p in pattern for p in ONE_WAY_PATTERNS):
+                continue
+
+            # Skip if the other domain is consumed as a kernel by anyone
+            if clean in kernel_domains:
+                continue
+
+            other = specs[clean]
+            other_adjs = [strip_prefix(r) for r in other.adjacents]
+            other_clients = [strip_prefix(r) for r in other.clients]
+            if sid not in other_adjs and sid not in other_clients:
+                result.warn("relationships", sid,
+                    f"lists '{clean}' as adjacent, but '{clean}' does not list '{sid}' in adjacents or domain_clients")
 
 
 def check_cycles(specs, result):
@@ -279,6 +305,10 @@ def check_published_language(specs, result):
     for sid, spec in specs.items():
         imported_terms = {i["term"] for i in spec.imports}
         specialized_terms = {t["term"] for t in spec.terms if t.get("specializes")}
+        # Also check detailed UL terms from ubiquitous-language.yaml
+        for t in spec.lang_data.get("terms", []):
+            if isinstance(t, dict) and t.get("term") and t.get("specializes"):
+                specialized_terms.add(t["term"])
 
         for term_name in spec.term_names:
             # Check if this term is published by another domain
@@ -332,8 +362,9 @@ def check_completeness(specs, result):
         if spec.version == "0.0.0-stub":
             result.warn("stub-detection", sid, "domain is still a stub (version: 0.0.0-stub)")
 
-        # Empty language
-        if not spec.terms:
+        # Empty language — skip for intentionally thin domains
+        intent = spec.data.get("intent", "")
+        if not spec.terms and intent not in ("adapter", "facade", "thin"):
             result.warn("completeness", sid, "no ubiquitous language terms defined")
 
 
@@ -383,18 +414,26 @@ def check_duplicate_ports(specs, result):
 def check_verification_quality(specs, result):
     """Flag vague verification properties and attribute-testing expressions."""
     import re
-    VAGUE_WORDS = re.compile(r'\b(properly|correctly|valid|handled|processed)\b', re.IGNORECASE)
-    ATTR_TESTS = re.compile(r'(hasattr|isinstance|type\(|__class__)')
+    # "valid" is vague only when not preceded by "not" or followed by a constraint
+    # "MUST" alone is fine — only flag "MUST be properly/correctly/handled"
+    VAGUE_PATTERNS = re.compile(
+        r'\b(properly|correctly)\b'
+        r'|\bhandled\b(?!\s+by)'
+        r'|\bprocessed\b(?!\s+(by|into|through|via|using))'
+        r'|\b(?<!not\s)(?<!in)valid\b(?!\s*(rotation|signature|response|seal|receipt|credential|event|state|key|if|when|for|against))',
+        re.IGNORECASE
+    )
+    # Only flag genuine attribute tests, not property-based testing decorators
+    ATTR_TESTS = re.compile(r'(?<!@)\b(hasattr|isinstance)\b|(?<!\w)type\(|__class__')
 
     for sid, spec in specs.items():
         for term in spec.terms:
             for inv in term.get("invariants", []):
                 text = inv if isinstance(inv, str) else (inv.get("text", "") if isinstance(inv, dict) else "")
-                if text and VAGUE_WORDS.search(text):
-                    # Only flag if there's no adjacent constraint (e.g., "valid" alone vs "valid if X")
-                    words_found = VAGUE_WORDS.findall(text)
+                if text and VAGUE_PATTERNS.search(text):
+                    match = VAGUE_PATTERNS.search(text)
                     result.warn("verification", sid,
-                        f"term '{term['term']}' has vague invariant containing: {', '.join(words_found)} — '{text[:80]}'")
+                        f"term '{term['term']}' has vague invariant: '{text[:80]}'")
 
                 # Check formal expressions
                 if isinstance(inv, dict) and inv.get("formal"):
@@ -411,7 +450,7 @@ def check_verification_quality(specs, result):
                 for prop in vdata.get("properties", []):
                     if isinstance(prop, dict):
                         inv_text = prop.get("invariant", "")
-                        if inv_text and VAGUE_WORDS.search(inv_text):
+                        if inv_text and VAGUE_PATTERNS.search(inv_text):
                             result.warn("verification", sid,
                                 f"verification property has vague language: '{inv_text[:80]}'")
                         formal = prop.get("formal", {})

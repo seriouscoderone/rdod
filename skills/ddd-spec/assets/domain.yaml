@@ -3,6 +3,7 @@ id: ""
 name: ""
 description: ""
 version: "0.0.0-stub"
+intent: ""                 # optional: core | adapter | orchestrator | facade
 
 # Where this domain's specification came from
 source_material: []
