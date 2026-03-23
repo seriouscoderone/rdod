@@ -137,6 +137,16 @@ User has an existing `rdod/spec/domains/` directory with `domain.yaml` files. St
 **Deciding where a concept goes:**
 Apply the decision rule. The hardest call is subdomain vs. adjacent — use the control test: does this domain drive it (subdomain), or do they negotiate as peers (adjacent)? If it's infrastructure with no domain concepts → external with an interface.
 
+## Validate Spec (optional)
+
+After any expansion session, validate structural integrity:
+
+```bash
+python skills/ddd-spec/scripts/validate_spec.py rdod/spec/domains
+```
+
+Checks reference resolution, mirror consistency, cycle detection, published language rules, folder hierarchy, term uniqueness, and completeness. Use `--strict` to treat warnings as errors. Use `--json` for machine-readable output.
+
 ## Generate Context Map (optional)
 
 After any expansion session with filled `domain.yaml` files:

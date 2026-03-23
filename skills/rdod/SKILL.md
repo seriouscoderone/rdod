@@ -140,6 +140,16 @@ Follow `references/crawling.md`. Start top-down, detect cohesive modules by nami
 **Deciding where code goes:**
 Apply the decision rule. The hardest call is subdomain vs. adjacent — use the control test: does this domain drive it (subdomain), or do they negotiate as peers (adjacent)? If it's infrastructure with no domain concepts → external with an interface.
 
+## Validate Spec (optional)
+
+After completing an RDOD analysis, validate structural integrity:
+
+```bash
+python skills/rdod/scripts/validate_spec.py rdod/analysis/domains
+```
+
+Checks reference resolution, mirror consistency, cycle detection, published language rules, folder hierarchy, term uniqueness, and completeness. Use `--strict` to treat warnings as errors. Use `--json` for machine-readable output.
+
 ## Generate Context Map (optional)
 
 After completing an RDOD analysis with filled `domain.yaml` files:
