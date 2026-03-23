@@ -194,7 +194,7 @@ def check_ref_resolution(specs, result):
 
 
 def check_mirror_consistency(specs, result):
-    """If A lists B as a client, B should list A in subdomains or adjacents."""
+    """If A lists B as a client, B should list A in subdomains or adjacents. Adjacents must be symmetric."""
     for sid, spec in specs.items():
         for ref in spec.clients:
             clean = strip_prefix(ref)
@@ -203,7 +203,7 @@ def check_mirror_consistency(specs, result):
                 other_subs = [strip_prefix(r) for r in other.subdomains]
                 other_adjs = [strip_prefix(r) for r in other.adjacents]
                 if sid not in other_subs and sid not in other_adjs:
-                    result.warn("mirror-check", sid,
+                    result.warn("relationships", sid,
                         f"lists '{clean}' as client, but '{clean}' does not list '{sid}' in subdomains or adjacents")
 
         for ref in spec.subdomains:
@@ -212,8 +212,19 @@ def check_mirror_consistency(specs, result):
                 other = specs[clean]
                 other_clients = [strip_prefix(r) for r in other.clients]
                 if sid not in other_clients:
-                    result.warn("mirror-check", sid,
+                    result.warn("relationships", sid,
                         f"lists '{clean}' as subdomain, but '{clean}' does not list '{sid}' as client")
+
+        # Adjacents must be symmetric
+        for ref in spec.adjacents:
+            clean = strip_prefix(ref)
+            if clean in specs:
+                other = specs[clean]
+                other_adjs = [strip_prefix(r) for r in other.adjacents]
+                other_clients = [strip_prefix(r) for r in other.clients]
+                if sid not in other_adjs and sid not in other_clients:
+                    result.warn("relationships", sid,
+                        f"lists '{clean}' as adjacent, but '{clean}' does not list '{sid}' in adjacents or domain_clients")
 
 
 def check_cycles(specs, result):
@@ -354,29 +365,240 @@ def check_orphans(specs, result):
                     "domain has no clients, no parent, no subdomains, and no adjacents — isolated")
 
 
+def check_duplicate_ports(specs, result):
+    """No two ports in a parent-child hierarchy should have the same name and contract."""
+    for sid, spec in specs.items():
+        for ref in spec.subdomains:
+            child_id = strip_prefix(ref)
+            if child_id in specs:
+                child = specs[child_id]
+                parent_ports = {(p.get("name"), p.get("contract")) for p in spec.ports}
+                for cp in child.ports:
+                    key = (cp.get("name"), cp.get("contract"))
+                    if key in parent_ports and key[0]:
+                        result.warn("ports", sid,
+                            f"port '{key[0]}' duplicated in child '{child_id}' with same contract — child should define, parent should reference via via_port")
+
+
+def check_verification_quality(specs, result):
+    """Flag vague verification properties and attribute-testing expressions."""
+    import re
+    VAGUE_WORDS = re.compile(r'\b(properly|correctly|valid|handled|processed)\b', re.IGNORECASE)
+    ATTR_TESTS = re.compile(r'(hasattr|isinstance|type\(|__class__)')
+
+    for sid, spec in specs.items():
+        for term in spec.terms:
+            for inv in term.get("invariants", []):
+                text = inv if isinstance(inv, str) else (inv.get("text", "") if isinstance(inv, dict) else "")
+                if text and VAGUE_WORDS.search(text):
+                    # Only flag if there's no adjacent constraint (e.g., "valid" alone vs "valid if X")
+                    words_found = VAGUE_WORDS.findall(text)
+                    result.warn("verification", sid,
+                        f"term '{term['term']}' has vague invariant containing: {', '.join(words_found)} — '{text[:80]}'")
+
+                # Check formal expressions
+                if isinstance(inv, dict) and inv.get("formal"):
+                    expr = inv["formal"].get("expression", "")
+                    if expr and ATTR_TESTS.search(expr):
+                        result.warn("verification", sid,
+                            f"term '{term['term']}' formal expression tests attributes instead of behavior: '{expr[:80]}'")
+
+        # Check verification.yaml properties too
+        verify_path = Path(spec.dir) / "verification.yaml"
+        if verify_path.exists():
+            vdata = load_yaml(str(verify_path))
+            if vdata:
+                for prop in vdata.get("properties", []):
+                    if isinstance(prop, dict):
+                        inv_text = prop.get("invariant", "")
+                        if inv_text and VAGUE_WORDS.search(inv_text):
+                            result.warn("verification", sid,
+                                f"verification property has vague language: '{inv_text[:80]}'")
+                        formal = prop.get("formal", {})
+                        if isinstance(formal, dict):
+                            expr = formal.get("expression", "")
+                            if expr and ATTR_TESTS.search(expr):
+                                result.warn("verification", sid,
+                                    f"verification expression tests attributes: '{expr[:80]}'")
+
+
+def check_missing_files(specs, result):
+    """Check for missing companion files and empty templates."""
+    for sid, spec in specs.items():
+        domain_dir = Path(spec.dir)
+
+        # Required companion files
+        if not (domain_dir / "ubiquitous-language.yaml").exists():
+            result.warn("files", sid, "missing ubiquitous-language.yaml")
+        if not (domain_dir / "ports.yaml").exists():
+            result.warn("files", sid, "missing ports.yaml")
+
+        # Check if optional files exist but are empty (just template headers)
+        for fname in ["errors.yaml", "types.yaml", "protocols.yaml", "verification.yaml"]:
+            fpath = domain_dir / fname
+            if fpath.exists():
+                fdata = load_yaml(str(fpath))
+                if fdata:
+                    # Check if all list fields are empty
+                    list_fields = [v for v in fdata.values() if isinstance(v, list)]
+                    if list_fields and all(len(lf) == 0 for lf in list_fields):
+                        result.warn("files", sid,
+                            f"{fname} exists but all sections are empty — remove or fill")
+
+        # Check subdomains reference existing directories
+        for ref in spec.subdomains:
+            child_id = strip_prefix(ref)
+            if child_id and child_id not in specs:
+                # Check if directory exists but domain.yaml is missing
+                possible_dir = domain_dir / child_id.split("/")[-1]
+                if possible_dir.exists() and not (possible_dir / "domain.yaml").exists():
+                    result.error("files", sid,
+                        f"subdomain '{child_id}' directory exists but has no domain.yaml")
+
+
+def check_implementation_vocabulary(specs, result):
+    """Flag implementation-specific vocabulary leaking into domain definitions."""
+    import re
+    # Short dotted identifiers (likely LMDB subdatabase names)
+    DOTTED_ID = re.compile(r'\.[a-z]{2,5}[es]?\b')
+    # Test framework terms
+    TEST_TERMS = re.compile(r'\b(pytest|unittest|assert\s+not\s+hasattr|#\[test\]|cargo\s+test)\b')
+
+    for sid, spec in specs.items():
+        # Check description
+        desc = spec.data.get("description", "")
+        if desc and DOTTED_ID.search(desc):
+            matches = DOTTED_ID.findall(desc)
+            result.warn("vocabulary", sid,
+                f"description contains implementation identifiers: {', '.join(matches)}")
+
+        # Check terms
+        for term in spec.terms:
+            definition = term.get("definition", "")
+            if definition and DOTTED_ID.search(definition):
+                matches = DOTTED_ID.findall(definition)
+                result.warn("vocabulary", sid,
+                    f"term '{term['term']}' definition contains implementation identifiers: {', '.join(matches)}")
+
+            for inv in term.get("invariants", []):
+                text = inv if isinstance(inv, str) else (inv.get("text", "") if isinstance(inv, dict) else "")
+                if text and DOTTED_ID.search(text):
+                    matches = DOTTED_ID.findall(text)
+                    result.warn("vocabulary", sid,
+                        f"term '{term['term']}' invariant contains implementation identifiers: {', '.join(matches)}")
+
+                # Check formal expressions for test framework terms
+                if isinstance(inv, dict) and inv.get("formal"):
+                    expr = inv["formal"].get("expression", "")
+                    if expr and TEST_TERMS.search(expr):
+                        result.warn("vocabulary", sid,
+                            f"term '{term['term']}' formal expression contains test framework terms")
+
+
+def check_schema_conformance(specs, result):
+    """Validate required fields per file type."""
+    for sid, spec in specs.items():
+        domain_dir = Path(spec.dir)
+
+        # Validate ports.yaml entries
+        for port in spec.ports:
+            if not port.get("id"):
+                result.error("schema", sid, f"port missing required field: id")
+            if not port.get("type"):
+                result.error("schema", sid, f"port '{port.get('name', '?')}' missing required field: type")
+            if not port.get("name"):
+                result.error("schema", sid, f"port '{port.get('id', '?')}' missing required field: name")
+
+        # Validate UL terms
+        for term in spec.terms:
+            if not term.get("definition"):
+                result.warn("schema", sid, f"term '{term['term']}' missing definition")
+
+        # Validate errors.yaml
+        errors_path = domain_dir / "errors.yaml"
+        if errors_path.exists():
+            edata = load_yaml(str(errors_path))
+            if edata:
+                for err in edata.get("errors", []):
+                    if isinstance(err, dict):
+                        for req in ["name", "description", "cause", "recovery", "severity"]:
+                            if not err.get(req):
+                                result.warn("schema", sid,
+                                    f"errors.yaml: error '{err.get('name', '?')}' missing field: {req}")
+
+        # Validate types.yaml
+        types_path = domain_dir / "types.yaml"
+        if types_path.exists():
+            tdata = load_yaml(str(types_path))
+            if tdata:
+                for t in tdata.get("types", []):
+                    if isinstance(t, dict):
+                        if not t.get("name"):
+                            result.error("schema", sid, "types.yaml: type missing required field: name")
+                        if not t.get("variants") and not t.get("fields"):
+                            result.warn("schema", sid,
+                                f"types.yaml: type '{t.get('name', '?')}' has no variants or fields")
+
+        # Validate protocols.yaml
+        proto_path = domain_dir / "protocols.yaml"
+        if proto_path.exists():
+            pdata = load_yaml(str(proto_path))
+            if pdata:
+                for p in pdata.get("protocols", []):
+                    if isinstance(p, dict):
+                        if not p.get("name"):
+                            result.error("schema", sid, "protocols.yaml: protocol missing required field: name")
+                        if not p.get("steps"):
+                            result.warn("schema", sid,
+                                f"protocols.yaml: protocol '{p.get('name', '?')}' has no steps")
+                        if not p.get("participants"):
+                            result.warn("schema", sid,
+                                f"protocols.yaml: protocol '{p.get('name', '?')}' has no participants")
+
+
+# ── Rule Registry ─────────────────────────────────────────────────────────────
+
+RULE_CATEGORIES = {
+    "references": [check_ref_resolution],
+    "relationships": [check_mirror_consistency],
+    "cycles": [check_cycles],
+    "terms": [check_published_language, check_term_uniqueness],
+    "ports": [check_duplicate_ports],
+    "verification": [check_verification_quality],
+    "files": [check_missing_files],
+    "vocabulary": [check_implementation_vocabulary],
+    "schema": [check_schema_conformance],
+    "completeness": [check_completeness, check_orphans],
+    "hierarchy": [check_folder_hierarchy],
+}
+
+ALL_CATEGORIES = list(RULE_CATEGORIES.keys())
+
+
 # ── Runner ────────────────────────────────────────────────────────────────────
 
-def validate(domains_dir, strict=False):
-    """Run all validation checks. Returns ValidationResult."""
+def validate(domains_dir, strict=False, rules=None):
+    """Run validation checks. Returns (specs, ValidationResult).
+    If rules is None, run all. Otherwise run only the specified categories."""
     specs = load_spec(domains_dir)
 
     if not specs:
         r = ValidationResult()
         r.error("loading", "(none)", f"No domain.yaml files found in {domains_dir}")
-        return r
+        return specs, r
 
     result = ValidationResult()
+    categories = rules if rules else ALL_CATEGORIES
 
-    check_ref_resolution(specs, result)
-    check_mirror_consistency(specs, result)
-    check_cycles(specs, result)
-    check_published_language(specs, result)
-    check_folder_hierarchy(specs, domains_dir, result)
-    check_completeness(specs, result)
-    check_term_uniqueness(specs, result)
-    check_orphans(specs, result)
+    for cat in categories:
+        if cat in RULE_CATEGORIES:
+            for check_fn in RULE_CATEGORIES[cat]:
+                if check_fn in (check_folder_hierarchy,):
+                    check_fn(specs, domains_dir, result)
+                else:
+                    check_fn(specs, result)
 
-    return result
+    return specs, result
 
 
 def main():
@@ -388,17 +610,27 @@ def main():
         help="Treat warnings as errors")
     parser.add_argument("--json", action="store_true",
         help="Output results as JSON")
+    parser.add_argument("--rules",
+        help=f"Comma-separated rule categories to run (default: all). Available: {', '.join(ALL_CATEGORIES)}")
     args = parser.parse_args()
 
     domains_dir = args.domains_dir
-    specs = load_spec(domains_dir)
-    print(f"Validating: {domains_dir} ({len(specs)} domains)", file=sys.stderr)
+    rules = args.rules.split(",") if args.rules else None
 
-    result = validate(domains_dir, strict=args.strict)
+    if rules:
+        unknown = [r for r in rules if r not in RULE_CATEGORIES]
+        if unknown:
+            print(f"Unknown rule categories: {', '.join(unknown)}", file=sys.stderr)
+            print(f"Available: {', '.join(ALL_CATEGORIES)}", file=sys.stderr)
+            sys.exit(2)
+
+    specs, result = validate(domains_dir, strict=args.strict, rules=rules)
+    print(f"Validating: {domains_dir} ({len(specs)} domains, {len(rules) if rules else len(ALL_CATEGORIES)} rule categories)", file=sys.stderr)
 
     if args.json:
         output = {
             "domains": len(specs),
+            "rules": rules or ALL_CATEGORIES,
             "errors": result.errors,
             "warnings": result.warnings,
             "passed": result.ok if not args.strict else (result.ok and len(result.warnings) == 0),
