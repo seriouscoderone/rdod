@@ -45,6 +45,23 @@ def strip_prefix(ref):
     return ref
 
 
+def parse_typed_ref(ref):
+    """Parse typed refs like 'types://keri/identity#InceptionEvent' → (scheme, domain_path, item_name).
+    Returns (None, None, None) if not a typed ref."""
+    if not ref or "://" not in str(ref):
+        return None, None, None
+    ref = str(ref)
+    scheme, rest = ref.split("://", 1)
+    if "#" in rest:
+        domain_path, item_name = rest.split("#", 1)
+        # Strip variant suffix: "InceptionEvent/non-delegated" → "InceptionEvent"
+        if "/" in item_name:
+            item_name = item_name.split("/")[0]
+    else:
+        domain_path, item_name = rest, None
+    return scheme, domain_path, item_name
+
+
 def get_refs(items, key="ref"):
     """Extract ref strings from a list of items (strings or dicts)."""
     if not items or not isinstance(items, list):
@@ -192,6 +209,104 @@ def check_ref_resolution(specs, result):
                         if target_ports and port_ref not in target_ports:
                             result.warn("port-resolution", sid,
                                 f"via_port '{port_ref}' not found in {port_domain_id}/ports.yaml")
+
+
+def check_protocol_refs(specs, result):
+    """Validate typed references in protocols.yaml steps (types://, errors://, verification://)."""
+    for sid, spec in specs.items():
+        proto_path = Path(spec.dir) / "protocols.yaml"
+        if not proto_path.exists():
+            continue
+        pdata = load_yaml(str(proto_path))
+        if not pdata:
+            continue
+
+        for proto in pdata.get("protocols", []):
+            if not isinstance(proto, dict):
+                continue
+            pname = proto.get("name", "?")
+            for step in proto.get("steps", []):
+                if not isinstance(step, dict):
+                    continue
+
+                # Collect all typed refs from this step
+                typed_refs = []
+
+                # input.types[].ref
+                inp = step.get("input")
+                if isinstance(inp, dict):
+                    for t in inp.get("types", []):
+                        if isinstance(t, dict) and t.get("ref"):
+                            typed_refs.append(t["ref"])
+
+                # output.type
+                out = step.get("output")
+                if isinstance(out, dict) and out.get("type"):
+                    typed_refs.append(out["type"])
+
+                # on_failure[].ref
+                for fail in step.get("on_failure", []):
+                    if isinstance(fail, dict) and fail.get("ref"):
+                        typed_refs.append(fail["ref"])
+
+                # preconditions[].ref
+                for pre in step.get("preconditions", []):
+                    if isinstance(pre, dict) and pre.get("ref"):
+                        typed_refs.append(pre["ref"])
+
+                # Validate each typed ref
+                for ref in typed_refs:
+                    scheme, domain_path, item_name = parse_typed_ref(ref)
+                    if not scheme or not domain_path:
+                        continue
+
+                    # Check domain exists
+                    if domain_path not in specs:
+                        result.warn("protocol-refs", sid,
+                            f"protocol '{pname}' step {step.get('seq', '?')}: "
+                            f"ref '{ref}' targets unknown domain '{domain_path}'")
+                        continue
+
+                    target = specs[domain_path]
+                    target_dir = Path(target.dir)
+
+                    # Validate by scheme
+                    if scheme == "types" and item_name:
+                        tpath = target_dir / "types.yaml"
+                        if tpath.exists():
+                            tdata = load_yaml(str(tpath))
+                            if tdata:
+                                type_names = {t.get("name", "") for t in tdata.get("types", []) if isinstance(t, dict)}
+                                if item_name not in type_names:
+                                    result.warn("protocol-refs", sid,
+                                        f"protocol '{pname}': types ref '{ref}' — "
+                                        f"'{item_name}' not found in {domain_path}/types.yaml")
+
+                    elif scheme == "errors" and item_name:
+                        epath = target_dir / "errors.yaml"
+                        if epath.exists():
+                            edata = load_yaml(str(epath))
+                            if edata:
+                                err_names = {e.get("name", "") for e in edata.get("errors", []) if isinstance(e, dict)}
+                                if item_name not in err_names:
+                                    result.warn("protocol-refs", sid,
+                                        f"protocol '{pname}': errors ref '{ref}' — "
+                                        f"'{item_name}' not found in {domain_path}/errors.yaml")
+
+                    elif scheme == "verification" and item_name:
+                        vpath = target_dir / "verification.yaml"
+                        if vpath.exists():
+                            vdata = load_yaml(str(vpath))
+                            if vdata:
+                                prop_names = set()
+                                for p in vdata.get("properties", []):
+                                    if isinstance(p, dict):
+                                        prop_names.add(p.get("name", ""))
+                                        prop_names.add(p.get("term", ""))
+                                if item_name not in prop_names:
+                                    result.warn("protocol-refs", sid,
+                                        f"protocol '{pname}': verification ref '{ref}' — "
+                                        f"'{item_name}' not found in {domain_path}/verification.yaml")
 
 
 def check_mirror_consistency(specs, result):
@@ -623,7 +738,7 @@ def check_schema_conformance(specs, result):
 # ── Rule Registry ─────────────────────────────────────────────────────────────
 
 RULE_CATEGORIES = {
-    "references": [check_ref_resolution],
+    "references": [check_ref_resolution, check_protocol_refs],
     "relationships": [check_mirror_consistency],
     "cycles": [check_cycles],
     "terms": [check_published_language, check_term_uniqueness],

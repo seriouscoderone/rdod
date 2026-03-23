@@ -13,11 +13,23 @@ protocols: []
 #     - seq: 1
 #       domain: ""          # domain://participant-id
 #       action: ""          # operation name
-#       port: ""            # port://domain/inbound/operation
-#       input: ""           # what goes in
-#       output: ""          # what comes out
+#       port: ""            # port://domain/inbound/operation (optional)
+#       input: ""           # string OR object with description + types
+#       # input:
+#       #   description: ""
+#       #   types:
+#       #     - ref: "types://domain-id#TypeName"
+#       #       fields: []
+#       output: ""          # string OR object with description + type
+#       # output:
+#       #   description: ""
+#       #   type: "types://domain-id#TypeName"
+#       preconditions: []   # optional — verification refs
+#       # - description: ""
+#       #   ref: "verification://domain-id#property-name"
 #       on_failure:
 #         - error: ""       # ErrorType from errors.yaml
+#           ref: ""         # errors://domain-id#ErrorType (optional)
 #           action: ""      # escrow | retry | abort | compensate
 #           compensation: "" # what to undo if needed
 #     - seq: 2

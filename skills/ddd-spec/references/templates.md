@@ -284,11 +284,15 @@ protocols:
       - seq: 1
         domain: "domain://<participant-id>"
         action: "<operation_name>"
-        port: "port://<domain-id>/inbound/<operation>"
-        input: "<what goes in>"
-        output: "<what comes out>"
+        port: "port://<domain-id>/inbound/<operation>"     # optional — resolves to ports.yaml
+        input: "<what goes in>"                            # string OR typed object (see below)
+        output: "<what comes out>"                         # string OR typed object (see below)
+        preconditions:                                     # optional — verification refs
+          - description: "<what must be true>"
+            ref: "verification://<domain-id>#<property>"
         on_failure:
           - error: "<ErrorType>"
+            ref: "errors://<domain-id>#<ErrorType>"        # optional — resolves to errors.yaml
             action: "<escrow | retry | abort | compensate>"
             compensation: "<what to undo>"
       - seq: 2
@@ -301,6 +305,32 @@ protocols:
       success: "<what done looks like>"
       failure: "<what failed looks like>"
 ```
+
+**Typed inputs/outputs** — `input:` and `output:` accept either a plain string or a typed object:
+
+```yaml
+# String (backward compatible):
+input: "Signing keys, next key digests, witness list"
+
+# Typed object (AI-implementable):
+input:
+  description: "Signing keys, next key digests, witness list"
+  types:
+    - ref: "types://<domain-id>#<TypeName>"
+      fields: ["k", "n", "b"]    # optional — which fields are relevant
+output:
+  description: "Signed inception event"
+  type: "types://<domain-id>#<TypeName>"
+```
+
+**URI schemes** for typed references:
+
+| Scheme | Resolves to | Format |
+|---|---|---|
+| `types://` | types.yaml type definition | `types://<domain-path>#<TypeName>[/<variant>]` |
+| `errors://` | errors.yaml error definition | `errors://<domain-path>#<ErrorName>` |
+| `port://` | ports.yaml port definition | `port://<domain-path>/<direction>/<name>` |
+| `verification://` | verification.yaml property | `verification://<domain-path>#<property-name>` |
 
 ---
 
