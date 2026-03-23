@@ -94,15 +94,15 @@ This is the heart of the expansion loop. For the current domain, work through th
 
 #### 5a — Ubiquitous language
 
-Using the nouns and verbs extracted in Step 2 that belong to this domain, draft the `ubiquitous_language` entries:
+Using the nouns and verbs extracted in Step 2 that belong to this domain, draft the term entries:
 
 1. For each term: write a precise `definition` scoped to this domain
 2. Propose `invariants` — rules that must always hold for this term
 3. If uncertain about a definition or invariant, ask the user
+4. **Published language:** If any terms are foundational concepts that other domains will depend on, add them to `published_language` in `domain.yaml`.
+5. **Imports:** If this domain uses terms from another domain's `published_language`, add `imports` entries in `ubiquitous-language.yaml`. If it narrows a parent's term, add `specializes:` on the term.
 
-Fill both:
-- The `ubiquitous_language` section in `domain.yaml` (brief: term + definition + invariants)
-- The full `ubiquitous-language.yaml` (expanded: synonyms, examples, related terms)
+Fill `ubiquitous-language.yaml` (the sole source of truth for all term content — terms, imports, specializes, synonyms, examples, related terms).
 
 Present the language to the user: "Here are the core terms for [domain]. Are these definitions accurate? Terms missing? Invariants wrong?"
 
@@ -202,6 +202,28 @@ For domains with critical invariants, formalize them for verification harnesses:
 5. Fill `verification.yaml` for this domain.
 
 This step is optional — skip for domains with simple, self-evident invariants. Prioritize it for core domains with complex behavior (high behavioral weight, many invariants, ordered terms).
+
+#### 5g — Errors, types, and protocols (optional)
+
+For domains with significant complexity, fill the optional companion files:
+
+**errors.yaml** — What errors can this domain produce? For each: name, cause, recovery strategy (retry/escrow/escalate/abort), severity (fatal/recoverable/transient), and context fields. Link each error to the port operation that produces it.
+
+**types.yaml** — What key data structures does this domain define? For types that cross domain boundaries or need exact reproduction: variants, fields with types and constraints, construction defaults, and encoding rules.
+
+**protocols.yaml** — Does this domain orchestrate multi-domain flows? Document: participants, step ordering with dependencies, failure paths with compensation, timeouts, and terminal states.
+
+**When to skip:** Leaf domains with simple language and few types can skip these files. Prioritize them for core domains, protocol domains, and domains with complex error handling.
+
+#### 5h — Set domain intent (optional)
+
+If this domain is an adapter layer, API facade, or thin delegation point:
+
+```yaml
+intent: "adapter"  # core | adapter | orchestrator | facade
+```
+
+This tells the linter to adjust expectations (e.g., no UL terms warning for adapters).
 
 ---
 

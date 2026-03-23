@@ -117,9 +117,18 @@ Both directories use the same domain.yaml format. Running both skills on the sam
 
 ## Templates
 
-See `references/templates.md` for fillable YAML templates (`domain.yaml`, `ubiquitous-language.yaml`, `ports.yaml`) with full field descriptions.
+See `references/templates.md` for all YAML template schemas with full field descriptions. Blank templates in `assets/`.
 
-Blank template files ready to copy into a project are in `assets/`.
+**Per domain (required):**
+- `domain.yaml` — identity, published language, neighbors, issues, code locations
+- `ubiquitous-language.yaml` — terms (sole source of truth), imports, specializations, events, rules
+- `ports.yaml` — inbound and outbound interfaces with contracts
+
+**Per domain (optional, for AI-implementability):**
+- `errors.yaml` — error taxonomy with cause, recovery, severity, context
+- `types.yaml` — formal data structures with variants, fields, constraints, encoding
+- `protocols.yaml` — cross-domain orchestration sequences with failure paths
+- `verification.yaml` — formalized invariants, port contracts, state machines
 
 ## Codebase Analysis Methodology
 

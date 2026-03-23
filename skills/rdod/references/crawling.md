@@ -73,7 +73,9 @@ Inside the domain's source folder:
 2. Collect the most-used nouns in method names and field names. High-frequency nouns that appear across multiple files are core language.
 3. Scan comments and doc strings for definitions or rules.
 4. For each term: write `term`, `definition`, and any `invariants` you can find (look for validation logic, assertions, `if`/`guard` checks that enforce a rule).
-5. Fill `ubiquitous-language.yaml`.
+5. Fill `ubiquitous-language.yaml` (the sole source of truth for all term content).
+6. **Published language:** If any terms are foundational concepts that other domains depend on (used across multiple modules), add them to `published_language` in `domain.yaml`. Other domains should import these rather than redefining them.
+7. **Imports and specializations:** If this domain uses terms defined in a parent or sibling domain's `published_language`, add an `imports` entry in `ubiquitous-language.yaml`. If it narrows a parent's term, add `specializes: "domain://<parent>"` on the term.
 
 **Issue cue:** If invariants are enforced ad-hoc across multiple places (repeated validation logic, no single owner) rather than inside a named aggregate or value object → log `modeling-gap` (`recommendation: introduce-concept:<proposed-name>`).
 
@@ -170,6 +172,33 @@ Fill `externals` in `domain.yaml`. For each port (inbound and outbound), fill `p
 - Raw infrastructure calls (DB queries, HTTP requests, file I/O) found directly in domain logic with no interface → log `missing-port`.
 - No inbound port exists — clients call internal domain types directly → log `missing-port` (inbound).
 - An external concern's interface is defined outside the domain (e.g., in an infra layer) rather than owned by the domain → log `inverted-dependency`.
+
+---
+
+## Step 7b — Extract errors, types, and protocols (optional)
+
+For domains with significant complexity, fill the optional companion files:
+
+**errors.yaml** — Scan for error types, exception classes, and error handling patterns. For each error the domain can produce, record: name, cause, recovery strategy (retry/escrow/escalate/abort), severity (fatal/recoverable/transient), and context fields. Link each error to the port operation that produces it.
+
+**types.yaml** — For domains with key data structures (not just simple value objects), extract formal type definitions: variants, fields with types and constraints, construction defaults, and encoding rules. Focus on types that cross domain boundaries or that an implementor would need to reproduce exactly.
+
+**protocols.yaml** — For domains that orchestrate multi-domain flows, document the end-to-end sequences: participants, step ordering with dependencies, failure paths with compensation, timeouts, and terminal states. This is most valuable for parent/orchestrator domains.
+
+**When to skip:** Leaf domains with simple language and few types can skip these files. Prioritize them for core domains, protocol domains, and domains with complex error handling.
+
+---
+
+## Step 7c — Set domain intent (optional)
+
+If this domain is an adapter layer, API facade, or thin delegation point with no domain logic of its own, set `intent:` in `domain.yaml`:
+
+- **core** — full domain logic, rich UL, types, errors expected
+- **adapter** — thin HTTP/API layer forwarding to parent domain logic
+- **orchestrator** — coordinates subdomains, protocols expected
+- **facade** — simplified interface over complex subdomains
+
+This tells the linter to adjust expectations (e.g., no UL terms warning for adapters).
 
 ---
 
