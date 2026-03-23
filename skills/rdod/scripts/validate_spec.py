@@ -411,17 +411,23 @@ def check_duplicate_ports(specs, result):
 def check_verification_quality(specs, result):
     """Flag vague verification properties and attribute-testing expressions."""
     import re
-    # "valid" is vague only when not preceded by "not" or followed by a constraint
-    # "MUST" alone is fine — only flag "MUST be properly/correctly/handled"
+    # Only flag genuinely vague qualifiers — not strong prescriptive assertions
+    # "properly handled" = vague. "MUST be rejected" = strong.
     VAGUE_PATTERNS = re.compile(
-        r'\b(properly|correctly)\b'
-        r'|\bhandled\b(?!\s+by)'
-        r'|\bprocessed\b(?!\s+(by|into|through|via|using))'
-        r'|\b(?<!not\s)(?<!in)valid\b(?!\s*(rotation|signature|response|seal|receipt|credential|event|state|key|if|when|for|against))',
+        r'\bproperly\b'
+        r'|\bcorrectly\b'
+        r'|\bhandled\b(?!\s+(by|via|through|as|in))'
+        r'|\bprocessed\b(?!\s+(by|into|through|via|using|in|as))',
         re.IGNORECASE
     )
-    # Only flag genuine attribute tests, not property-based testing decorators
-    ATTR_TESTS = re.compile(r'(?<!@)\b(hasattr|isinstance)\b|(?<!\w)type\(|__class__')
+
+    def is_attribute_test(expression):
+        """Check if a formal expression tests attributes instead of behavior."""
+        # @given tests are behavioral (Hypothesis property-based testing) — skip entirely
+        if '@given' in expression:
+            return False
+        # These patterns test attributes, not behavior
+        return bool(re.search(r'\bhasattr\s*\(|\bisinstance\s*\(|(?<!\w)type\s*\(|__class__', expression))
 
     for sid, spec in specs.items():
         for term in spec.terms:
@@ -435,7 +441,8 @@ def check_verification_quality(specs, result):
                 # Check formal expressions
                 if isinstance(inv, dict) and inv.get("formal"):
                     expr = inv["formal"].get("expression", "")
-                    if expr and ATTR_TESTS.search(expr):
+                    lang = inv["formal"].get("language", "")
+                    if expr and lang != "pseudocode" and is_attribute_test(expr):
                         result.warn("verification", sid,
                             f"term '{term['term']}' formal expression tests attributes instead of behavior: '{expr[:80]}'")
 
@@ -453,7 +460,8 @@ def check_verification_quality(specs, result):
                         formal = prop.get("formal", {})
                         if isinstance(formal, dict):
                             expr = formal.get("expression", "")
-                            if expr and ATTR_TESTS.search(expr):
+                            lang = formal.get("language", "")
+                            if expr and lang != "pseudocode" and is_attribute_test(expr):
                                 result.warn("verification", sid,
                                     f"verification expression tests attributes: '{expr[:80]}'")
 
@@ -499,28 +507,46 @@ def check_implementation_vocabulary(specs, result):
     DOTTED_ID = re.compile(r'\.[a-z]{2,5}[es]?\b')
     # Test framework terms
     TEST_TERMS = re.compile(r'\b(pytest|unittest|assert\s+not\s+hasattr|#\[test\]|cargo\s+test)\b')
+    # Exclusions for dotted identifiers
+    METHOD_NAMES = {'.get', '.set', '.put', '.delete', '.post', '.list', '.find',
+                    '.groups', '.items', '.keys', '.values', '.append', '.pop',
+                    '.sort', '.split', '.join', '.strip', '.lower', '.upper'}
+    RFC_PATHS = {'.well', '.well-known'}
+
+    def is_impl_vocab(text, match):
+        """Check if a dotted identifier is actually implementation vocabulary."""
+        if match in METHOD_NAMES or match in RFC_PATHS:
+            return False
+        # Skip matches inside [.xxx in impl] bracket convention
+        escaped = re.escape(match)
+        if re.search(r'\[' + escaped + r'\s+in\s+\w+', text):
+            return False
+        return True
 
     for sid, spec in specs.items():
         # Check description
         desc = spec.data.get("description", "")
-        if desc and DOTTED_ID.search(desc):
-            matches = DOTTED_ID.findall(desc)
-            result.warn("vocabulary", sid,
-                f"description contains implementation identifiers: {', '.join(matches)}")
+        if desc:
+            matches = [m for m in DOTTED_ID.findall(desc) if is_impl_vocab(desc, m)]
+            if matches:
+                result.warn("vocabulary", sid,
+                    f"description contains implementation identifiers: {', '.join(matches)}")
 
         # Check terms
         for term in spec.terms:
             definition = term.get("definition", "")
-            if definition and DOTTED_ID.search(definition):
-                matches = DOTTED_ID.findall(definition)
-                result.warn("vocabulary", sid,
-                    f"term '{term['term']}' definition contains implementation identifiers: {', '.join(matches)}")
+            if definition:
+                matches = [m for m in DOTTED_ID.findall(definition) if is_impl_vocab(definition, m)]
+                if matches:
+                    result.warn("vocabulary", sid,
+                        f"term '{term['term']}' definition contains implementation identifiers: {', '.join(matches)}")
 
             for inv in term.get("invariants", []):
                 text = inv if isinstance(inv, str) else (inv.get("text", "") if isinstance(inv, dict) else "")
-                if text and DOTTED_ID.search(text):
-                    matches = DOTTED_ID.findall(text)
-                    result.warn("vocabulary", sid,
+                if text:
+                    matches = [m for m in DOTTED_ID.findall(text) if is_impl_vocab(text, m)]
+                    if matches:
+                        result.warn("vocabulary", sid,
                         f"term '{term['term']}' invariant contains implementation identifiers: {', '.join(matches)}")
 
                 # Check formal expressions for test framework terms
