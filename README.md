@@ -64,18 +64,21 @@ Output goes to `rdod/spec/domains/`.
 
 ## Output Format
 
-Four YAML files per domain (verification is optional):
+Up to 7 YAML files per domain (last 4 are optional):
 
 | File | Purpose |
 |------|---------|
-| **`domain.yaml`** | Identity, ubiquitous language, neighbor relationships, issues |
-| **`ubiquitous-language.yaml`** | Expanded terms with synonyms, examples, events, cross-term rules |
+| **`domain.yaml`** | Identity, ubiquitous language, published language, neighbor relationships, issues |
+| **`ubiquitous-language.yaml`** | Expanded terms with synonyms, imports, specializations, events, rules |
 | **`ports.yaml`** | Inbound and outbound interfaces with contracts |
-| **`verification.yaml`** | Formalized invariants, port contracts, state machines (optional) |
+| **`errors.yaml`** | Error taxonomy — every error with cause, recovery, severity, context |
+| **`types.yaml`** | Formal data structures — variants, fields, constraints, encoding rules |
+| **`protocols.yaml`** | Cross-domain orchestration — step sequences, failure paths, compensation |
+| **`verification.yaml`** | Formalized invariants, port contracts, state machines |
 
 All refs use URI-style strings: `domain://video-editing`, `port://video-editing/inbound/editing-api`, `kernel://color-lib`.
 
-A JSON schema (`assets/rdod-data.schema.json`) defines the full structure of the generated context map data, validated at generation time via AJV.
+A JSON schema (`assets/rdod-data.schema.json`) defines the full structure of the generated data, validated via AJV in the browser.
 
 ## Context Map Viewer
 
@@ -94,9 +97,55 @@ Features:
 - **Full-text search** across all domain fields (terms, invariants, descriptions, ports, issues)
 - **Term count badges** showing vocabulary richness per domain
 - **Interactive graph** with color-coded neighbor types (click to navigate)
-- **Complete info panel** showing all template data: language with invariants, neighbors with relationships, ports, events, rules, issues, code locations, implementation guidance, and source material
+- **Complete info panel** showing all template data: published language, imports, language with invariants, neighbors with relationships, ports, events, rules, errors, types, protocols, issues, code locations, implementation guidance, and source material
 - **AJV schema validation** on page load (results in browser console)
 - **Breadcrumb navigation** with back button
+
+## Spec Validator
+
+Deterministic linter for domain specs — catches structural issues without LLM involvement:
+
+```bash
+python skills/rdod/scripts/validate_spec.py rdod/analysis/domains
+python skills/ddd-spec/scripts/validate_spec.py rdod/spec/domains
+```
+
+11 rule categories:
+
+| Category | What it checks |
+|---|---|
+| `references` | Every domain://, port:// ref resolves |
+| `relationships` | Mirror consistency, adjacents symmetry (respects conformist/kernel patterns) |
+| `cycles` | No cycles in subdomain graph |
+| `terms` | Published language: single owner, import required, no unauthorized redefinition |
+| `ports` | No duplicate ports across parent-child hierarchy |
+| `verification` | Flags vague invariants, attribute-testing expressions |
+| `files` | Missing companion files, empty templates |
+| `vocabulary` | Implementation-specific terms leaking into domain definitions |
+| `schema` | Required fields per file type |
+| `completeness` | Required fields, stub detection (respects domain intent) |
+| `hierarchy` | Folder nesting matches subdomain declarations |
+
+```bash
+# Run specific categories
+python validate_spec.py rdod/spec/domains --rules verification,terms
+
+# Strict mode (warnings = errors)
+python validate_spec.py rdod/spec/domains --strict
+
+# CI-friendly JSON output
+python validate_spec.py rdod/spec/domains --json
+```
+
+## Published Language Boundaries
+
+Formal term ownership across domain boundaries:
+
+- **`published_language`** in `domain.yaml` — declares terms this domain authoritatively owns
+- **`imports`** in `ubiquitous-language.yaml` — declares terms imported from other domains
+- **`specializes`** on terms — narrows a parent domain's term with additive invariants
+
+The validator enforces single ownership, import requirements, and redefinition rules.
 
 ## Domain-Driven Verification (optional)
 
