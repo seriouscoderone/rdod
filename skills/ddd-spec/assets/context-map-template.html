@@ -936,7 +936,36 @@ function renderInfo(domain) {
     panel.appendChild(desc);
   }
 
-  // ── Ubiquitous Language (with invariants + pattern) ──
+  // ── Published Language ──
+  const pubLang = (domain.published_language || []).filter(p => p && p.term);
+  if (pubLang.length > 0) {
+    const pubWrap = document.createElement('div');
+    pubLang.forEach(p => {
+      const row = document.createElement('div');
+      row.style.cssText = 'padding:3px 0;border-bottom:1px solid #1e2d4a;font-size:12px';
+      row.innerHTML = `<span style="color:#f5c518;font-weight:600">${esc(p.term)}</span>${p.description ? ` <span style="color:#888;font-size:11px">— ${esc(p.description)}</span>` : ''}`;
+      pubWrap.appendChild(row);
+    });
+    panel.appendChild(makeSection(`PUBLISHED LANGUAGE (${pubLang.length} exported terms)`, pubWrap, false));
+  }
+
+  // ── Imports ──
+  const imports = (domain._imports || []).filter(i => i && i.term);
+  if (imports.length > 0) {
+    const impWrap = document.createElement('div');
+    imports.forEach(imp => {
+      const row = document.createElement('div');
+      row.style.cssText = 'padding:3px 0;border-bottom:1px solid #1e2d4a;font-size:12px';
+      let html = `<span style="color:#8ab4f8;font-weight:600">${esc(imp.term)}</span>`;
+      if (imp.from) html += ` <span style="color:#555;font-size:10px">from ${esc(imp.from)}</span>`;
+      if (imp.usage) html += `<div style="color:#888;font-size:11px">${esc(imp.usage)}</div>`;
+      row.innerHTML = html;
+      impWrap.appendChild(row);
+    });
+    panel.appendChild(makeSection(`IMPORTS (${imports.length} terms)`, impWrap, true));
+  }
+
+  // ── Ubiquitous Language (with invariants + pattern + specializes) ──
   const lang = (domain.ubiquitous_language || []).filter(t => t && t.term);
   if (lang.length > 0) {
     const langWrap = document.createElement('div');
@@ -946,6 +975,9 @@ function renderInfo(domain) {
       let html = `<div style="display:flex;gap:8px"><span style="color:#f5c518;font-weight:600;min-width:30%;font-size:12px">${esc(entry.term)}</span><span style="color:#ccc;font-size:12px">${esc(entry.definition || '')}</span></div>`;
       if (entry.pattern) {
         html += `<div style="font-size:10px;color:#9b59b6;margin-top:2px">pattern: ${esc(entry.pattern)}</div>`;
+      }
+      if (entry.specializes) {
+        html += `<div style="font-size:10px;color:#4a90d9;margin-top:2px">specializes: ${esc(entry.specializes)}</div>`;
       }
       const invs = (entry.invariants || []).filter(Boolean);
       if (invs.length > 0) {

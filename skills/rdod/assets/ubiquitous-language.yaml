@@ -4,10 +4,17 @@
 # Both files should stay in sync — every term here should appear in domain.yaml and vice versa.
 domain_ref: ""
 
+# Terms imported from other domains (use instead of redefining)
+imports: []
+# - term: ""               # term name
+#   from: ""               # domain://<owner-domain-id>
+#   usage: ""              # how this domain uses the imported term
+
 terms:
   - term: ""
     synonyms: []
     pattern: ""          # optional: name of a pattern term this is an instance of
+    specializes: ""      # optional: domain://<parent-domain-id> — narrows a parent term
     definition: ""
     invariants: []       # rules that must always hold for this term, e.g. "Timeline must have >= 1 clip"
     examples: []         # code snippet or scenario showing this term in use

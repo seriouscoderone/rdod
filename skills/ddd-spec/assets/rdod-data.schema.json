@@ -32,6 +32,17 @@
           "type": "string",
           "description": "Semver version of this domain spec (e.g., '1.0.0', '0.0.0-stub')"
         },
+        "published_language": {
+          "type": "array",
+          "description": "Terms this domain authoritatively owns and exports for other domains to consume",
+          "items": {
+            "type": "object",
+            "properties": {
+              "term": { "type": "string" },
+              "description": { "type": "string" }
+            }
+          }
+        },
         "ubiquitous_language": {
           "type": "array",
           "description": "Core terms for this domain",
@@ -128,6 +139,18 @@
             "$ref": "#/$defs/port"
           }
         },
+        "_imports": {
+          "type": "array",
+          "description": "Enriched from ubiquitous-language.yaml — terms imported from other domains",
+          "items": {
+            "type": "object",
+            "properties": {
+              "term": { "type": "string" },
+              "from": { "type": "string", "description": "domain://<owner-domain-id>" },
+              "usage": { "type": "string" }
+            }
+          }
+        },
         "_events": {
           "type": "array",
           "description": "Enriched from ubiquitous-language.yaml — domain events",
@@ -188,6 +211,7 @@
           }
         },
         "pattern": { "type": "string", "description": "Name of a pattern term this is an instance of" },
+        "specializes": { "type": "string", "description": "domain://<parent-domain-id> — this term narrows a parent domain's term" },
         "synonyms": {
           "type": "array",
           "items": { "type": "string" }

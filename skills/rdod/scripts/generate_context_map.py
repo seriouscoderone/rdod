@@ -48,6 +48,7 @@ def enrich_domain(data, domain_dir):
         if lang_data and isinstance(lang_data, dict):
             data["_events"] = lang_data.get("events", [])
             data["_rules"] = lang_data.get("rules", [])
+            data["_imports"] = lang_data.get("imports", [])
             # Merge expanded term fields (synonyms, examples, related_terms, pattern)
             # into the inline ubiquitous_language entries
             expanded = {}
@@ -57,7 +58,7 @@ def enrich_domain(data, domain_dir):
             for entry in data.get("ubiquitous_language", []):
                 if isinstance(entry, dict) and entry.get("term") in expanded:
                     exp = expanded[entry["term"]]
-                    for key in ("synonyms", "examples", "related_terms", "pattern", "invariants"):
+                    for key in ("synonyms", "examples", "related_terms", "pattern", "specializes", "invariants"):
                         if key in exp and exp[key] and not entry.get(key):
                             entry[key] = exp[key]
 

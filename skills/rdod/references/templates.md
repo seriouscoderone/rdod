@@ -16,6 +16,12 @@ name: "<human-readable>"   # e.g., "Video Editing"
 description: "<what problem space this covers, scope, purpose>"
 version: "<semver>"        # e.g., "1.0.0"
 
+# Terms this domain authoritatively owns and exports for other domains to consume
+# Other domains should import these terms rather than redefining them
+published_language: []
+# - term: "<term>"
+#   description: "<why this term is exported>"
+
 # Core language — brief here; expand in ubiquitous-language.yaml
 ubiquitous_language:
   - term: "<term>"
@@ -148,10 +154,17 @@ This file expands the brief `ubiquitous_language` entries in `domain.yaml`. Both
 # ubiquitous-language.yaml
 domain_ref: "<domain-id>"
 
+# Terms imported from other domains (use instead of redefining)
+imports: []
+# - term: "<term>"
+#   from: "domain://<owner-domain-id>"
+#   usage: "<how this domain uses the imported term>"
+
 terms:
   - term: "<term>"
     synonyms: []
     pattern: ""              # Optional: name of a pattern term this is an instance of
+    specializes: ""          # Optional: domain://<parent-domain-id> — narrows a parent term
     definition: "<precise definition>"
     invariants:              # Rules that must always hold for this term
       - "<natural language rule>"
@@ -358,6 +371,18 @@ For single-repo systems, ignore this section — everything lives under one `rdo
 - Every `via_port:` must resolve to a port `id:` in the referenced domain's `ports.yaml`. For adjacents that communicate via events (no direct port call), omit `via_port` and document the event contract in the `relationship` field instead
 - No cycles in subdomain graph (adjacents may be mutual)
 - Each domain's `domain_clients` must be the mirror of some other domain's `subdomains` or `adjacents`
+
+### Published Language Rules
+
+When domains use `published_language`, `imports`, and `specializes`, these additional rules apply:
+
+| Rule | Check |
+|---|---|
+| **Single owner** | Each term in `published_language` must appear in exactly one domain across the entire spec |
+| **Import required** | If a domain uses a term defined in another domain's `published_language`, it must declare an `import` in its `ubiquitous-language.yaml` |
+| **No unauthorized redefinition** | If a term exists in another domain's `published_language` and this domain defines the same term locally without `specializes:`, flag as duplication |
+| **Specialization is additive** | A `specializes` term may add invariants but must not contradict or weaken parent invariants |
+| **Import source exists** | Every `from:` reference in `imports:` must point to a domain that publishes that term in its `published_language` |
 
 ## Folder Convention
 
