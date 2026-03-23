@@ -68,8 +68,8 @@ Up to 7 YAML files per domain (last 4 are optional):
 
 | File | Purpose |
 |------|---------|
-| **`domain.yaml`** | Identity, ubiquitous language, published language, neighbor relationships, issues |
-| **`ubiquitous-language.yaml`** | Expanded terms with synonyms, imports, specializations, events, rules |
+| **`domain.yaml`** | Identity, published language, neighbor relationships, intent, issues |
+| **`ubiquitous-language.yaml`** | All term definitions (sole source of truth), imports, specializations, events, rules |
 | **`ports.yaml`** | Inbound and outbound interfaces with contracts |
 | **`errors.yaml`** | Error taxonomy — every error with cause, recovery, severity, context |
 | **`types.yaml`** | Formal data structures — variants, fields, constraints, encoding rules |
