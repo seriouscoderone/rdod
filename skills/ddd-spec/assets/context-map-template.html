@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Domain Context Map</title>
+<title>RDOD Context Map</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/ajv/8.17.1/ajv2020.bundle.min.js"></script>
 <style>
@@ -263,7 +263,7 @@
 <body>
 <div id="app">
   <header>
-    <h1>Domain Context Map</h1>
+    <h1>RDOD Context Map</h1>
     <div id="breadcrumb"></div>
     <button id="btn-back" disabled>&#8592; Back</button>
   </header>
@@ -921,6 +921,13 @@ function renderInfo(domain) {
     v.textContent = `v${domain.version}`;
     meta.appendChild(v);
   }
+  if (domain.intent) {
+    const intentPill = document.createElement('span');
+    intentPill.className = 'tag';
+    intentPill.style.cssText = 'background:#2d4a1e;color:#7ec850';
+    intentPill.textContent = domain.intent;
+    meta.appendChild(intentPill);
+  }
   (domain.tags || []).forEach(tag => {
     const pill = document.createElement('span');
     pill.className = 'tag';
@@ -982,7 +989,17 @@ function renderInfo(domain) {
       const invs = (entry.invariants || []).filter(Boolean);
       if (invs.length > 0) {
         invs.forEach(inv => {
-          html += `<div class="invariant">↳ ${esc(inv)}</div>`;
+          if (typeof inv === 'string') {
+            html += `<div class="invariant">↳ ${esc(inv)}</div>`;
+          } else if (typeof inv === 'object') {
+            html += `<div class="invariant">↳ ${esc(inv.text || '')}</div>`;
+            if (inv.formal && inv.formal.expression) {
+              html += `<div style="font-size:10px;color:#5cb85c;padding-left:16px;font-family:monospace;white-space:pre-wrap">${esc(inv.formal.language || '')}:  ${esc(inv.formal.expression.substring(0, 200))}</div>`;
+            }
+            if (inv.technique) {
+              html += `<div style="font-size:10px;color:#9b59b6;padding-left:16px">technique: ${esc(inv.technique)}</div>`;
+            }
+          }
         });
       }
       row.innerHTML = html;
@@ -1003,6 +1020,7 @@ function renderInfo(domain) {
       const rel = (typeof item === 'object') ? (item.relationship || '') : '';
       const port = (typeof item === 'object') ? (item.via_port || '') : '';
       const source = (typeof item === 'object') ? (item.source || '') : '';
+      const pattern = (typeof item === 'object') ? (item.pattern || '') : '';
       const crossCut = (typeof item === 'object') ? item.is_cross_cutting : false;
       const abstraction = (typeof item === 'object') ? (item.abstraction || '') : '';
       const implNotes = (typeof item === 'object') ? (item.implementation_notes || '') : '';
@@ -1011,6 +1029,7 @@ function renderInfo(domain) {
       row.className = 'neighbor-item';
       let html = `<span class="nb-type-label ${cssClass}">${label}</span>`;
       html += `<span class="nb-name" ${isNavigable && d ? `data-nav="${esc(id)}"` : 'style="cursor:default;color:#bbb"'}>${esc(displayName)}</span>`;
+      if (pattern) html += `<span class="nb-rel" style="color:#9b59b6">[${esc(pattern)}]</span>`;
       if (rel) html += `<span class="nb-rel">${esc(rel)}</span>`;
       if (crossCut) html += `<span class="nb-rel" style="color:#e67e22">(cross-cutting)</span>`;
       if (source) html += `<span class="nb-rel">${esc(source)}</span>`;
@@ -1181,6 +1200,12 @@ function renderInfo(domain) {
       if (err.related_port) meta.push(esc(err.related_port));
       if (meta.length) html += `<div style="color:#888;font-size:10px;margin-top:2px">${meta.join(' | ')}</div>`;
       if (err.cause) html += `<div style="color:#e67e22;font-size:11px;margin-top:2px">cause: ${esc(err.cause)}</div>`;
+      if (err.escrow_queue) html += `<div style="color:#9b59b6;font-size:11px;margin-top:2px">escrow: ${esc(err.escrow_queue)}</div>`;
+      if (err.context && err.context.length) {
+        err.context.forEach(c => {
+          if (typeof c === 'object') html += `<div style="color:#666;font-size:10px;padding-left:8px">${esc(c.field || '')}: <span style="color:#5cb85c">${esc(c.type || '')}</span> ${esc(c.description || '')}</div>`;
+        });
+      }
       item.innerHTML = html;
       errWrap.appendChild(item);
     });
@@ -1202,9 +1227,18 @@ function renderInfo(domain) {
           html += `<div style="color:#9b59b6;font-size:11px;margin-top:3px">variant: ${esc(v.name || 'default')}</div>`;
           (v.fields || []).forEach(f => {
             const req = f.required ? '' : ' (optional)';
-            html += `<div style="color:#888;font-size:11px;padding-left:12px">${esc(f.name)}: <span style="color:#5cb85c">${esc(f.type || '')}</span>${req}</div>`;
+            let fhtml = `<div style="color:#888;font-size:11px;padding-left:12px">${esc(f.name)}: <span style="color:#5cb85c">${esc(f.type || '')}</span>${req}`;
+            if (f.constraints) fhtml += ` <span style="color:#e67e22;font-size:10px">[${esc(typeof f.constraints === 'string' ? f.constraints : JSON.stringify(f.constraints))}]</span>`;
+            fhtml += `</div>`;
+            html += fhtml;
           });
         });
+      }
+      if (t.encoding && t.encoding.length) {
+        html += `<div style="color:#888;font-size:10px;margin-top:3px">encoding: ${t.encoding.map(e => typeof e === 'object' ? `${esc(e.format||'')}` : esc(e)).join(', ')}</div>`;
+      }
+      if (t.construction_defaults) {
+        html += `<div style="color:#888;font-size:10px;margin-top:2px">defaults: ${esc(typeof t.construction_defaults === 'string' ? t.construction_defaults : JSON.stringify(t.construction_defaults))}</div>`;
       }
       item.innerHTML = html;
       typesWrap.appendChild(item);
@@ -1221,17 +1255,95 @@ function renderInfo(domain) {
       item.className = 'issue-item';
       let html = `<div style="color:#f5c518;font-weight:600;margin-bottom:2px">${esc(p.name)}</div>`;
       if (p.description) html += `<div style="color:#ccc;font-size:12px">${esc(p.description)}</div>`;
+      if (p.trigger) html += `<div style="color:#e67e22;font-size:11px;margin-top:2px">trigger: ${esc(p.trigger)}</div>`;
       if (p.participants && p.participants.length) {
         html += `<div style="color:#888;font-size:10px;margin-top:3px">participants: ${p.participants.map(pt => esc(pt.domain || '')).join(', ')}</div>`;
       }
       (p.steps || []).forEach(s => {
-        html += `<div style="font-size:11px;margin-top:2px;padding-left:8px"><span style="color:#555">${s.seq}.</span> <span style="color:#4a90d9">${esc(s.domain || '')}</span> → ${esc(s.action || '')}</div>`;
+        const deps = s.depends_on ? ` (after ${s.depends_on.join(',')})` : '';
+        const inp = typeof s.input === 'string' ? s.input : (s.input && s.input.description || '');
+        const out = typeof s.output === 'string' ? s.output : (s.output && s.output.description || '');
+        html += `<div style="font-size:11px;margin-top:2px;padding-left:8px"><span style="color:#555">${s.seq}.${esc(deps)}</span> <span style="color:#4a90d9">${esc(s.domain || '')}</span> → ${esc(s.action || '')}</div>`;
+        if (inp) html += `<div style="font-size:10px;color:#888;padding-left:20px">in: ${esc(inp)}</div>`;
+        if (out) html += `<div style="font-size:10px;color:#5cb85c;padding-left:20px">out: ${esc(out)}</div>`;
+        if (s.on_failure && s.on_failure.length) {
+          s.on_failure.forEach(f => {
+            html += `<div style="font-size:10px;color:#ff6b6b;padding-left:20px">✗ ${esc(f.error || '')} → ${esc(f.action || '')}</div>`;
+          });
+        }
       });
       if (p.timeout) html += `<div style="color:#888;font-size:10px;margin-top:2px">timeout: ${esc(p.timeout)}</div>`;
+      if (p.compensation) html += `<div style="color:#e67e22;font-size:10px;margin-top:2px">compensation: ${esc(p.compensation)}</div>`;
+      if (p.terminal_states) {
+        if (p.terminal_states.success) html += `<div style="color:#5cb85c;font-size:10px;margin-top:2px">✓ ${esc(p.terminal_states.success)}</div>`;
+        if (p.terminal_states.failure) html += `<div style="color:#ff6b6b;font-size:10px">✗ ${esc(p.terminal_states.failure)}</div>`;
+      }
       item.innerHTML = html;
       protoWrap.appendChild(item);
     });
     panel.appendChild(makeSection(`PROTOCOLS (${protocols.length})`, protoWrap, true));
+  }
+
+  // ── Verification ──
+  const verif = domain._verification;
+  if (verif && (verif.properties && verif.properties.length || verif.contracts && verif.contracts.length || verif.state_machines && verif.state_machines.length)) {
+    const verifWrap = document.createElement('div');
+    const props = (verif.properties || []);
+    const contracts = (verif.contracts || []);
+    const machines = (verif.state_machines || []);
+
+    if (props.length > 0) {
+      props.forEach(prop => {
+        if (!prop || typeof prop !== 'object') return;
+        const item = document.createElement('div');
+        item.style.cssText = 'padding:4px 0;border-bottom:1px solid #1e2d4a';
+        let html = '';
+        if (prop.term) html += `<span style="color:#f5c518;font-size:11px">${esc(prop.term)}</span> `;
+        if (prop.invariant) html += `<div style="color:#ccc;font-size:12px">${esc(prop.invariant)}</div>`;
+        if (prop.formal && prop.formal.expression) {
+          html += `<div style="font-size:10px;color:#5cb85c;font-family:monospace;white-space:pre-wrap;margin-top:2px">${esc(prop.formal.language || '')}: ${esc(prop.formal.expression.substring(0, 300))}</div>`;
+        }
+        if (prop.technique) html += `<div style="font-size:10px;color:#9b59b6">technique: ${esc(prop.technique)}</div>`;
+        item.innerHTML = html;
+        verifWrap.appendChild(item);
+      });
+    }
+
+    if (contracts.length > 0) {
+      const ch = document.createElement('div');
+      ch.style.cssText = 'color:#4a90d9;font-weight:600;font-size:11px;margin-top:6px';
+      ch.textContent = `PORT CONTRACTS (${contracts.length})`;
+      verifWrap.appendChild(ch);
+      contracts.forEach(c => {
+        if (!c || typeof c !== 'object') return;
+        const item = document.createElement('div');
+        item.style.cssText = 'padding:3px 0;font-size:11px;border-bottom:1px solid #1e2d4a';
+        let html = `<span style="color:#ccc">${esc(c.port || '')}</span>`;
+        if (c.precondition) html += `<div style="color:#888;font-size:10px;padding-left:8px">pre: ${esc(c.precondition)}</div>`;
+        if (c.postcondition) html += `<div style="color:#5cb85c;font-size:10px;padding-left:8px">post: ${esc(c.postcondition)}</div>`;
+        item.innerHTML = html;
+        verifWrap.appendChild(item);
+      });
+    }
+
+    if (machines.length > 0) {
+      const mh = document.createElement('div');
+      mh.style.cssText = 'color:#e67e22;font-weight:600;font-size:11px;margin-top:6px';
+      mh.textContent = `STATE MACHINES (${machines.length})`;
+      verifWrap.appendChild(mh);
+      machines.forEach(m => {
+        if (!m || typeof m !== 'object') return;
+        const item = document.createElement('div');
+        item.style.cssText = 'padding:3px 0;font-size:11px';
+        let html = `<span style="color:#ccc">${esc(m.name || m.term || '')}</span>`;
+        if (m.states && m.states.length) html += `<div style="color:#888;font-size:10px;padding-left:8px">states: ${m.states.map(s => esc(typeof s === 'string' ? s : s.name || '')).join(' → ')}</div>`;
+        item.innerHTML = html;
+        verifWrap.appendChild(item);
+      });
+    }
+
+    const totalVerif = props.length + contracts.length + machines.length;
+    panel.appendChild(makeSection(`VERIFICATION (${totalVerif})`, verifWrap, true));
   }
 }
 
