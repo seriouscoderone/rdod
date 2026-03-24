@@ -83,6 +83,34 @@ Inside the domain's source folder:
 
 ---
 
+## Step 3b — Spec-depth audit (per domain)
+
+The initial crawl captures code structure (classes, functions, modules). This step probes the domain's source material for concepts that hide behind simple code — protocol-level richness, design principles, variant taxonomies, and philosophical constraints that AST extraction misses.
+
+**When to run:** After extracting UL terms (Step 3) and before mapping relationships (Step 4). Prioritize domains with rich source material (`source_material:` in domain.yaml) but few UL terms.
+
+**For each domain, probe the source material with these 5 questions:**
+
+1. **Variant taxonomy**: "What are ALL the variants/forms/modes of [concept]? Not just the main one — edge cases, special forms, alternative patterns?"
+
+2. **Architectural principles**: "What design principles or constraints govern [concept]? Why was it designed this way? What alternatives were rejected?"
+
+3. **Independence/coupling**: "Can [concept] operate independently of [assumed dependency]? What is the minimum infrastructure required?"
+
+4. **Consumer patterns**: "Who uses [concept] and HOW? Are there different usage patterns for different consumers?"
+
+5. **Lifecycle/evolution**: "How does [concept] change over time? Immutable? Append-only? Replaceable? What update semantics apply?"
+
+**Gap identification:** For each concept found in source material but NOT in the UL:
+- New term → add to `ubiquitous-language.yaml`
+- Variant of existing term → expand the type definition in `types.yaml`
+- Architectural property → add as a principle term with invariants
+- Implementation detail → skip (not domain-level)
+
+**Cross-domain check:** For each new concept, ask "does this affect other domains?" If yes, check those domains for corresponding terms or relationships.
+
+---
+
 ## Step 4 — Identify clients (upstream)
 
 Who imports or depends on this domain?

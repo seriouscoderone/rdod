@@ -122,6 +122,32 @@ After drafting 3+ terms for a domain, check for shared structural patterns:
 
 **Issue cue:** If a domain has 3+ terms that are instances of the same pattern, the domain is likely at the right depth — decomposing further would split instances of the same concept into separate domains, which is over-splitting.
 
+#### 5a-ter — Spec-depth audit
+
+After extracting UL terms and detecting patterns, probe the domain's source material for concepts the initial pass may have missed. Code structure captures classes and functions; this step captures protocol-level richness, design principles, variant taxonomies, and philosophical constraints.
+
+**When to run:** Prioritize domains with rich source material (`source_material:` in domain.yaml) but few UL terms.
+
+**Probe the source material with these 5 questions:**
+
+1. **Variant taxonomy**: "What are ALL the variants/forms/modes of [concept]? Not just the main one — edge cases, special forms, alternative patterns?"
+
+2. **Architectural principles**: "What design principles or constraints govern [concept]? Why was it designed this way? What alternatives were rejected?"
+
+3. **Independence/coupling**: "Can [concept] operate independently of [assumed dependency]? What is the minimum infrastructure required?"
+
+4. **Consumer patterns**: "Who uses [concept] and HOW? Are there different usage patterns for different consumers?"
+
+5. **Lifecycle/evolution**: "How does [concept] change over time? Immutable? Append-only? Replaceable? What update semantics apply?"
+
+**Gap identification:** For each concept found but NOT in the UL:
+- New term → add to `ubiquitous-language.yaml`
+- Variant of existing term → expand the type definition in `types.yaml`
+- Architectural property → add as a principle term with invariants
+- Implementation detail → skip (not domain-level)
+
+**Cross-domain check:** For each new concept, ask "does this affect other domains?" If yes, check those domains for corresponding terms or relationships.
+
 #### 5b — Neighbor discovery
 
 For each remaining candidate on the domain list, determine its relationship to the current domain by applying the decision rule:

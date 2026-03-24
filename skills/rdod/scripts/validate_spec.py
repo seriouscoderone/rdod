@@ -177,12 +177,16 @@ class ValidationResult:
     def __init__(self):
         self.errors = []
         self.warnings = []
+        self.infos = []
 
     def error(self, rule, domain_id, message):
         self.errors.append({"rule": rule, "domain": domain_id, "message": message})
 
     def warn(self, rule, domain_id, message):
         self.warnings.append({"rule": rule, "domain": domain_id, "message": message})
+
+    def info(self, rule, domain_id, message):
+        self.infos.append({"rule": rule, "domain": domain_id, "message": message})
 
     @property
     def ok(self):
@@ -1044,6 +1048,47 @@ def fix_yaml_structure(specs):
     return fixed
 
 
+# ── Depth Audit Rules ─────────────────────────────────────────────────────────
+
+def check_source_material_coverage(specs, result):
+    """Flag domains with rich source material but few UL terms — may have unexplored depth."""
+    for sid, spec in specs.items():
+        source_count = len([s for s in spec.data.get("source_material", [])
+                           if isinstance(s, dict)])
+        term_count = len(spec.terms)
+        if source_count >= 2 and term_count < 5:
+            result.info("depth-audit", sid,
+                f"has {source_count} source materials but only {term_count} UL terms "
+                f"— consider a spec-depth audit for hidden concepts")
+
+
+def check_type_variant_completeness(specs, result):
+    """Flag types with small enums on classifier fields — may have undiscovered variants."""
+    for sid, spec in specs.items():
+        tdata = load_yaml(str(Path(spec.dir) / "types.yaml"))
+        if not tdata:
+            continue
+        for t in tdata.get("types", []):
+            if not isinstance(t, dict):
+                continue
+            for variant in t.get("variants", []):
+                if not isinstance(variant, dict):
+                    continue
+                for field in variant.get("fields", []):
+                    if not isinstance(field, dict):
+                        continue
+                    constraints = field.get("constraints", {})
+                    if not isinstance(constraints, dict):
+                        continue
+                    enum_values = constraints.get("enum", [])
+                    if 1 <= len(enum_values) <= 2 and field.get("name", "") in (
+                        "type", "role", "kind", "variant", "mode", "category", "form"
+                    ):
+                        result.info("depth-audit", sid,
+                            f"type '{t.get('name', '?')}' field '{field['name']}' has only "
+                            f"{len(enum_values)} enum values — verify against source material for completeness")
+
+
 # ── Rule Registry ─────────────────────────────────────────────────────────────
 
 RULE_CATEGORIES = {
@@ -1060,6 +1105,7 @@ RULE_CATEGORIES = {
     "hierarchy": [check_folder_hierarchy],
     "cross-refs": [check_type_references, check_typeref_syntax, check_duplicate_errors, check_escrow_references],
     "yaml-structure": [check_section_item_types, check_duplicate_yaml_keys, check_section_ordering, check_term_count],
+    "depth-audit": [check_source_material_coverage, check_type_variant_completeness],
 }
 
 ALL_CATEGORIES = list(RULE_CATEGORIES.keys())
@@ -1134,6 +1180,7 @@ def main():
             "rules": rules or ALL_CATEGORIES,
             "errors": result.errors,
             "warnings": result.warnings,
+            "infos": result.infos,
             "passed": result.ok if not args.strict else (result.ok and len(result.warnings) == 0),
         }
         print(json.dumps(output, indent=2))
@@ -1148,11 +1195,18 @@ def main():
             for w in result.warnings:
                 print(f"  [{w['rule']}] {w['domain']}: {w['message']}")
 
+        if result.infos:
+            print(f"\nINFO ({len(result.infos)}):")
+            for i in result.infos:
+                print(f"  [{i['rule']}] {i['domain']}: {i['message']}")
+
         total_issues = len(result.errors) + len(result.warnings)
-        if total_issues == 0:
+        if total_issues == 0 and not result.infos:
             print(f"\n✓ All checks passed ({len(specs)} domains)")
+        elif total_issues == 0:
+            print(f"\n✓ {len(result.errors)} error(s), {len(result.warnings)} warning(s), {len(result.infos)} info(s)")
         else:
-            print(f"\n{'✗' if result.errors else '⚠'} {len(result.errors)} error(s), {len(result.warnings)} warning(s)")
+            print(f"\n{'✗' if result.errors else '⚠'} {len(result.errors)} error(s), {len(result.warnings)} warning(s), {len(result.infos)} info(s)")
 
     # Exit code
     if result.errors:
