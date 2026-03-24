@@ -876,6 +876,165 @@ def check_escrow_references(specs, result):
                     f"not defined as a UL term or synonym in any domain")
 
 
+# ── YAML Structure Rules ──────────────────────────────────────────────────────
+
+UL_SECTION_RULES = {
+    "terms": lambda item: isinstance(item, dict) and "term" in item,
+    "events": lambda item: isinstance(item, dict) and "name" in item,
+    "rules": lambda item: isinstance(item, str),
+    "imports": lambda item: isinstance(item, dict) and "term" in item and "from" in item,
+}
+
+CANONICAL_ORDER = {
+    "ubiquitous-language.yaml": ["domain_ref", "imports", "terms", "events", "rules"],
+    "domain.yaml": ["template_version", "id", "name", "description", "version", "intent",
+                     "source_material", "published_language",
+                     "domain_clients", "subdomains", "kernels", "adjacents",
+                     "externals", "implementation_guidance", "issues", "tags"],
+}
+
+ALL_YAML_FILES = ["domain.yaml", "ubiquitous-language.yaml", "ports.yaml",
+                  "verification.yaml", "errors.yaml", "types.yaml", "protocols.yaml"]
+
+
+def check_section_item_types(specs, result):
+    """Validate that items are in the correct YAML section."""
+    for sid, spec in specs.items():
+        if not spec.lang_data:
+            continue
+        for section, validator in UL_SECTION_RULES.items():
+            items = spec.lang_data.get(section, [])
+            if not items or not isinstance(items, list):
+                continue
+            for i, item in enumerate(items):
+                if not validator(item):
+                    if isinstance(item, dict) and "term" in item:
+                        actual = "term"
+                    elif isinstance(item, dict) and "name" in item:
+                        actual = "event"
+                    else:
+                        actual = "unknown"
+                    result.error("yaml-structure", sid,
+                        f"item {i} in '{section}:' section appears to be a {actual}, "
+                        f"not a valid {section} entry — likely appended after wrong section header")
+
+
+def check_duplicate_yaml_keys(specs, result):
+    """Detect duplicate top-level keys in YAML files."""
+    for sid, spec in specs.items():
+        for filename in ALL_YAML_FILES:
+            filepath = Path(spec.dir) / filename
+            if not filepath.exists():
+                continue
+            seen_keys = {}
+            try:
+                with open(filepath) as f:
+                    for lineno, line in enumerate(f, 1):
+                        stripped = line.rstrip()
+                        if stripped and not stripped[0].isspace() and not stripped.startswith("#"):
+                            key = stripped.split(":")[0].strip()
+                            if key in seen_keys:
+                                result.error("yaml-duplicate-key", sid,
+                                    f"{filename} has duplicate top-level key '{key}' "
+                                    f"at lines {seen_keys[key]} and {lineno} — "
+                                    f"YAML silently uses the last occurrence")
+                            seen_keys[key] = lineno
+            except (IOError, OSError):
+                pass
+
+
+def check_section_ordering(specs, result):
+    """Warn when YAML sections appear out of canonical order."""
+    for sid, spec in specs.items():
+        for filename, expected_order in CANONICAL_ORDER.items():
+            filepath = Path(spec.dir) / filename
+            if not filepath.exists():
+                continue
+            found_order = []
+            try:
+                with open(filepath) as f:
+                    for line in f:
+                        stripped = line.rstrip()
+                        if stripped and not stripped[0].isspace() and not stripped.startswith("#") and ":" in stripped:
+                            key = stripped.split(":")[0].strip()
+                            if key in expected_order and key not in found_order:
+                                found_order.append(key)
+            except (IOError, OSError):
+                continue
+
+            expected_indices = [expected_order.index(k) for k in found_order if k in expected_order]
+            if expected_indices != sorted(expected_indices):
+                result.warn("yaml-ordering", sid,
+                    f"{filename} sections out of canonical order: "
+                    f"found {found_order}")
+
+
+def check_term_count(specs, result):
+    """Cross-check raw term count vs parsed term count in UL files."""
+    for sid, spec in specs.items():
+        filepath = Path(spec.dir) / "ubiquitous-language.yaml"
+        if not filepath.exists():
+            continue
+        try:
+            with open(filepath) as f:
+                raw_count = sum(1 for line in f if line.strip().startswith("- term:"))
+        except (IOError, OSError):
+            continue
+
+        parsed_count = len(spec.lang_data.get("terms", []))
+        if raw_count > parsed_count:
+            result.error("yaml-orphaned-terms", sid,
+                f"ubiquitous-language.yaml has {raw_count} '- term:' lines "
+                f"but YAML parsed only {parsed_count} terms — "
+                f"{raw_count - parsed_count} terms are orphaned "
+                f"(likely placed after events: or rules: section)")
+
+
+def fix_yaml_structure(specs):
+    """Auto-fix orphaned items and section ordering. Returns list of fixed files."""
+    import yaml
+    fixed = []
+    for sid, spec in specs.items():
+        filepath = Path(spec.dir) / "ubiquitous-language.yaml"
+        if not filepath.exists():
+            continue
+        data = spec.lang_data
+        if not data:
+            continue
+        changed = False
+
+        # Move orphaned terms from events/rules to terms
+        terms = list(data.get("terms", []))
+        for section in ("events", "rules"):
+            items = data.get(section, [])
+            if not items or not isinstance(items, list):
+                continue
+            orphaned = [item for item in items if isinstance(item, dict) and "term" in item]
+            if orphaned:
+                terms.extend(orphaned)
+                data[section] = [item for item in items if not (isinstance(item, dict) and "term" in item)]
+                changed = True
+
+        if changed:
+            data["terms"] = terms
+
+        # Rewrite in canonical order
+        if changed:
+            ordered = {}
+            for key in CANONICAL_ORDER.get("ubiquitous-language.yaml", []):
+                if key in data:
+                    ordered[key] = data[key]
+            # Preserve any extra keys not in canonical order
+            for key in data:
+                if key not in ordered:
+                    ordered[key] = data[key]
+            with open(filepath, "w") as f:
+                yaml.dump(ordered, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
+            fixed.append(f"{sid}/ubiquitous-language.yaml")
+
+    return fixed
+
+
 # ── Rule Registry ─────────────────────────────────────────────────────────────
 
 RULE_CATEGORIES = {
@@ -891,6 +1050,7 @@ RULE_CATEGORIES = {
     "completeness": [check_completeness, check_orphans],
     "hierarchy": [check_folder_hierarchy],
     "cross-refs": [check_type_references, check_typeref_syntax, check_duplicate_errors, check_escrow_references],
+    "yaml-structure": [check_section_item_types, check_duplicate_yaml_keys, check_section_ordering, check_term_count],
 }
 
 ALL_CATEGORIES = list(RULE_CATEGORIES.keys())
@@ -933,6 +1093,8 @@ def main():
         help="Output results as JSON")
     parser.add_argument("--rules",
         help=f"Comma-separated rule categories to run (default: all). Available: {', '.join(ALL_CATEGORIES)}")
+    parser.add_argument("--fix", action="store_true",
+        help="Auto-fix structural YAML issues (orphaned items, section ordering)")
     args = parser.parse_args()
 
     domains_dir = args.domains_dir
@@ -946,6 +1108,15 @@ def main():
             sys.exit(2)
 
     specs, result = validate(domains_dir, strict=args.strict, rules=rules)
+
+    if args.fix and specs:
+        fixed = fix_yaml_structure(specs)
+        if fixed:
+            print(f"\nFixed {len(fixed)} file(s):", file=sys.stderr)
+            for f in fixed:
+                print(f"  {f}", file=sys.stderr)
+            # Re-validate after fix
+            specs, result = validate(domains_dir, strict=args.strict, rules=rules)
     print(f"Validating: {domains_dir} ({len(specs)} domains, {len(rules) if rules else len(ALL_CATEGORIES)} rule categories)", file=sys.stderr)
 
     if args.json:

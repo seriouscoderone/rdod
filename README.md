@@ -110,7 +110,7 @@ python skills/rdod/scripts/validate_spec.py rdod/analysis/domains
 python skills/ddd-spec/scripts/validate_spec.py rdod/spec/domains
 ```
 
-12 rule categories:
+13 rule categories:
 
 | Category | What it checks |
 |---|---|
@@ -126,6 +126,7 @@ python skills/ddd-spec/scripts/validate_spec.py rdod/spec/domains
 | `completeness` | Required fields, stub detection (respects domain intent) |
 | `hierarchy` | Folder nesting matches subdomain declarations |
 | `cross-refs` | Type references, TypeRef syntax, duplicate errors, escrow queue terms |
+| `yaml-structure` | Orphaned items, duplicate keys, section ordering, term count cross-check |
 
 ```bash
 # Run specific categories
@@ -133,6 +134,9 @@ python validate_spec.py rdod/spec/domains --rules verification,terms
 
 # Strict mode (warnings = errors)
 python validate_spec.py rdod/spec/domains --strict
+
+# Auto-fix orphaned YAML items and section ordering
+python validate_spec.py rdod/spec/domains --fix
 
 # CI-friendly JSON output
 python validate_spec.py rdod/spec/domains --json
