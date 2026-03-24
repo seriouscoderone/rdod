@@ -976,8 +976,17 @@ def check_term_count(specs, result):
         if not filepath.exists():
             continue
         try:
+            in_terms = False
+            raw_count = 0
             with open(filepath) as f:
-                raw_count = sum(1 for line in f if line.strip().startswith("- term:"))
+                for line in f:
+                    stripped = line.rstrip()
+                    # Detect top-level section headers (no leading whitespace)
+                    if stripped and not stripped[0].isspace() and not stripped.startswith("#") and ":" in stripped:
+                        key = stripped.split(":")[0].strip()
+                        in_terms = (key == "terms")
+                    if in_terms and line.strip().startswith("- term:"):
+                        raw_count += 1
         except (IOError, OSError):
             continue
 
