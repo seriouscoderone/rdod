@@ -735,6 +735,147 @@ def check_schema_conformance(specs, result):
                                 f"protocols.yaml: protocol '{p.get('name', '?')}' has no participants")
 
 
+# ── Cross-Reference Rules ─────────────────────────────────────────────────────
+
+PRIMITIVE_TYPES = {"string", "integer", "boolean", "bytes", "map", "float", "null", "any", "array", "list", "datetime"}
+
+
+def _load_types_registry(specs):
+    """Build {type_name: [domain_ids]} and {domain_id: {local_type_names}}."""
+    global_types = {}
+    local_types = {}
+    for sid, spec in specs.items():
+        tdata = load_yaml(str(Path(spec.dir) / "types.yaml"))
+        if not tdata:
+            local_types[sid] = set()
+            continue
+        names = set()
+        for t in tdata.get("types", []):
+            if isinstance(t, dict) and t.get("name"):
+                names.add(t["name"])
+                global_types.setdefault(t["name"], []).append(sid)
+        local_types[sid] = names
+    return global_types, local_types
+
+
+def check_type_references(specs, result):
+    """Cross-reference type names in types.yaml fields and ports.yaml contracts."""
+    global_types, local_types = _load_types_registry(specs)
+
+    for sid, spec in specs.items():
+        tdata = load_yaml(str(Path(spec.dir) / "types.yaml"))
+        if not tdata:
+            continue
+        for t in tdata.get("types", []):
+            if not isinstance(t, dict):
+                continue
+            tname = t.get("name", "?")
+            for variant in t.get("variants", []):
+                if not isinstance(variant, dict):
+                    continue
+                for field in variant.get("fields", []):
+                    if not isinstance(field, dict):
+                        continue
+                    ftype = field.get("type", "")
+                    fname = field.get("name", "?")
+                    if not ftype or ftype.lower() in PRIMITIVE_TYPES:
+                        continue
+                    if ftype.startswith("array[") or ftype.startswith("map["):
+                        continue
+                    if ftype.startswith("TypeRef:"):
+                        ref_part = ftype[len("TypeRef:"):]
+                        if "#" in ref_part:
+                            domain, type_name = ref_part.split("#", 1)
+                            if domain not in specs:
+                                result.warn("type-ref", sid,
+                                    f"TypeRef '{ftype}' in {tname}.{fname} — domain '{domain}' not found")
+                            elif type_name and type_name not in local_types.get(domain, set()):
+                                result.warn("type-ref", sid,
+                                    f"TypeRef '{ftype}' in {tname}.{fname} — type '{type_name}' not in {domain}/types.yaml")
+                    else:
+                        # Bare type name — must be local or globally defined
+                        if ftype not in local_types.get(sid, set()) and ftype not in global_types:
+                            result.warn("type-ref", sid,
+                                f"type '{ftype}' used in {tname}.{fname} but not defined in any types.yaml")
+
+
+def check_typeref_syntax(specs, result):
+    """Enforce TypeRef: prefix for cross-domain type references."""
+    _, local_types = _load_types_registry(specs)
+
+    for sid, spec in specs.items():
+        tdata = load_yaml(str(Path(spec.dir) / "types.yaml"))
+        if not tdata:
+            continue
+        local = local_types.get(sid, set())
+        for t in tdata.get("types", []):
+            if not isinstance(t, dict):
+                continue
+            tname = t.get("name", "?")
+            for variant in t.get("variants", []):
+                if not isinstance(variant, dict):
+                    continue
+                for field in variant.get("fields", []):
+                    if not isinstance(field, dict):
+                        continue
+                    ftype = field.get("type", "")
+                    fname = field.get("name", "?")
+                    if not ftype or ftype.lower() in PRIMITIVE_TYPES:
+                        continue
+                    if ftype.startswith("array[") or ftype.startswith("map[") or ftype.startswith("TypeRef:"):
+                        continue
+                    # Bare type name that's not local → should use TypeRef:
+                    if ftype not in local:
+                        result.warn("typeref-syntax", sid,
+                            f"bare type '{ftype}' in {tname}.{fname} — use TypeRef:domain#Type for cross-domain refs")
+
+
+def check_duplicate_errors(specs, result):
+    """Flag same-name errors in parent/child domains."""
+    error_registry = {}  # {error_name: [domain_ids]}
+    for sid, spec in specs.items():
+        edata = load_yaml(str(Path(spec.dir) / "errors.yaml"))
+        if not edata:
+            continue
+        for err in edata.get("errors", []):
+            if isinstance(err, dict) and err.get("name"):
+                error_registry.setdefault(err["name"], []).append(sid)
+
+    for name, domains in error_registry.items():
+        if len(domains) < 2:
+            continue
+        for i, d1 in enumerate(domains):
+            for d2 in domains[i+1:]:
+                if d1.startswith(d2 + "/") or d2.startswith(d1 + "/"):
+                    result.warn("duplicate-error", d1,
+                        f"error '{name}' defined in both '{d1}' and '{d2}' — "
+                        f"differentiate names or document scope distinction")
+
+
+def check_escrow_references(specs, result):
+    """Cross-reference escrow_queue fields against UL terms."""
+    all_terms = set()
+    for sid, spec in specs.items():
+        for t in spec.terms:
+            all_terms.add(t.get("term", ""))
+            for syn in t.get("synonyms", []):
+                if isinstance(syn, str):
+                    all_terms.add(syn)
+
+    for sid, spec in specs.items():
+        edata = load_yaml(str(Path(spec.dir) / "errors.yaml"))
+        if not edata:
+            continue
+        for err in edata.get("errors", []):
+            if not isinstance(err, dict):
+                continue
+            queue = err.get("escrow_queue", "")
+            if queue and queue not in all_terms:
+                result.warn("escrow-ref", sid,
+                    f"error '{err.get('name', '?')}' references escrow queue '{queue}' "
+                    f"not defined as a UL term or synonym in any domain")
+
+
 # ── Rule Registry ─────────────────────────────────────────────────────────────
 
 RULE_CATEGORIES = {
@@ -749,6 +890,7 @@ RULE_CATEGORIES = {
     "schema": [check_schema_conformance],
     "completeness": [check_completeness, check_orphans],
     "hierarchy": [check_folder_hierarchy],
+    "cross-refs": [check_type_references, check_typeref_syntax, check_duplicate_errors, check_escrow_references],
 }
 
 ALL_CATEGORIES = list(RULE_CATEGORIES.keys())
