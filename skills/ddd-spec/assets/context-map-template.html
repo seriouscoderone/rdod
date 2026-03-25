@@ -257,6 +257,15 @@
     transition: background 0.15s;
   }
   #graph-handle:hover, #graph-handle.active { background: #4a90d9; }
+  #panel-search-bar { display: flex; align-items: center; gap: 4px; padding: 4px 8px; background: #0a1628; border-bottom: 1px solid #1e2d4a; }
+  #panel-search { flex: 1; background: #0d2137; border: 1px solid #1e2d4a; color: #e0e0e0; padding: 4px 8px; border-radius: 4px; font-size: 12px; outline: none; }
+  #panel-search:focus { border-color: #4a90d9; }
+  #panel-search-count { color: #888; font-size: 11px; min-width: 50px; text-align: center; white-space: nowrap; }
+  #panel-search-bar button { background: #1a2d4a; border: 1px solid #1e2d4a; color: #bbb; padding: 2px 6px; border-radius: 3px; cursor: pointer; font-size: 11px; }
+  #panel-search-bar button:hover:not(:disabled) { background: #0f3460; color: #e0e0e0; }
+  #panel-search-bar button:disabled { opacity: 0.3; cursor: default; }
+  mark.panel-hl { background: #5a4d00; color: #f5c518; border-radius: 2px; padding: 0 1px; }
+  mark.panel-hl.current { background: #f5c518; color: #0a1628; }
   body.dragging-col { user-select: none; cursor: col-resize !important; }
   body.dragging-row { user-select: none; cursor: row-resize !important; }
   body.dragging-col *, body.dragging-row * { cursor: inherit !important; }
@@ -287,6 +296,13 @@
       <div id="graph-wrap">
         <div id="cy"></div>
         <div id="graph-handle"></div>
+        <div id="panel-search-bar">
+          <input id="panel-search" type="text" placeholder="Search info panel…" autocomplete="off">
+          <span id="panel-search-count"></span>
+          <button id="panel-search-prev" disabled title="Previous">&#9650;</button>
+          <button id="panel-search-next" disabled title="Next">&#9660;</button>
+          <button id="panel-search-clear" style="display:none" title="Clear">&#10005;</button>
+        </div>
         <div id="info-panel"><div class="empty-msg">Select a domain to view details.</div></div>
       </div>
     </div>
@@ -1437,6 +1453,137 @@ function renderInfo(domain) {
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 
+// ── Info Panel Search ─────────────────────────────────────────────────────────
+
+(function() {
+  const input = document.getElementById('panel-search');
+  const countEl = document.getElementById('panel-search-count');
+  const prevBtn = document.getElementById('panel-search-prev');
+  const nextBtn = document.getElementById('panel-search-next');
+  const clearBtn = document.getElementById('panel-search-clear');
+  let highlights = [];
+  let currentIdx = -1;
+
+  function clearHighlights() {
+    highlights = [];
+    currentIdx = -1;
+    countEl.textContent = '';
+    prevBtn.disabled = true;
+    nextBtn.disabled = true;
+    clearBtn.style.display = 'none';
+    // Remove all <mark> tags by restoring text
+    const panel = document.getElementById('info-panel');
+    panel.querySelectorAll('mark.panel-hl').forEach(mark => {
+      const text = document.createTextNode(mark.textContent);
+      mark.parentNode.replaceChild(text, mark);
+    });
+    // Normalize to merge adjacent text nodes
+    panel.normalize();
+  }
+
+  function highlightText(query) {
+    clearHighlights();
+    if (!query || query.length < 2) return;
+
+    const panel = document.getElementById('info-panel');
+    const q = query.toLowerCase();
+
+    // Walk all text nodes in the info panel
+    const walker = document.createTreeWalker(panel, NodeFilter.SHOW_TEXT, null);
+    const matches = [];
+    let node;
+    while (node = walker.nextNode()) {
+      const text = node.textContent;
+      const lower = text.toLowerCase();
+      let idx = 0;
+      while ((idx = lower.indexOf(q, idx)) !== -1) {
+        matches.push({ node, offset: idx, length: query.length });
+        idx += query.length;
+      }
+    }
+
+    if (matches.length === 0) {
+      countEl.textContent = '0 results';
+      return;
+    }
+
+    // Apply highlights in reverse order to preserve offsets
+    for (let i = matches.length - 1; i >= 0; i--) {
+      const m = matches[i];
+      const range = document.createRange();
+      try {
+        range.setStart(m.node, m.offset);
+        range.setEnd(m.node, m.offset + m.length);
+        const mark = document.createElement('mark');
+        mark.className = 'panel-hl';
+        range.surroundContents(mark);
+      } catch (e) {
+        // Skip if range crosses element boundaries
+      }
+    }
+
+    highlights = Array.from(panel.querySelectorAll('mark.panel-hl'));
+    countEl.textContent = `${highlights.length} result${highlights.length === 1 ? '' : 's'}`;
+    prevBtn.disabled = highlights.length <= 1;
+    nextBtn.disabled = highlights.length === 0;
+    clearBtn.style.display = highlights.length > 0 ? '' : 'none';
+
+    if (highlights.length > 0) {
+      currentIdx = -1;
+      goToMatch(0);
+    }
+  }
+
+  function goToMatch(idx) {
+    if (highlights.length === 0) return;
+    // Remove current marker
+    if (currentIdx >= 0 && currentIdx < highlights.length) {
+      highlights[currentIdx].classList.remove('current');
+    }
+    currentIdx = ((idx % highlights.length) + highlights.length) % highlights.length;
+    const mark = highlights[currentIdx];
+    mark.classList.add('current');
+    countEl.textContent = `${currentIdx + 1}/${highlights.length}`;
+
+    // Expand any collapsed section containing this match
+    let el = mark.parentElement;
+    while (el && el.id !== 'info-panel') {
+      if (el.classList.contains('section-body') && el.classList.contains('hidden')) {
+        el.classList.remove('hidden');
+        const header = el.previousElementSibling;
+        if (header && header.classList.contains('section-header')) {
+          header.classList.remove('collapsed');
+        }
+      }
+      el = el.parentElement;
+    }
+
+    // Scroll into view
+    mark.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  let debounceTimer;
+  input.addEventListener('input', () => {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => highlightText(input.value.trim()), 200);
+  });
+
+  nextBtn.addEventListener('click', () => goToMatch(currentIdx + 1));
+  prevBtn.addEventListener('click', () => goToMatch(currentIdx - 1));
+  clearBtn.addEventListener('click', () => { input.value = ''; clearHighlights(); });
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (e.shiftKey) goToMatch(currentIdx - 1);
+      else goToMatch(currentIdx + 1);
+    }
+    if (e.key === 'Escape') { input.value = ''; clearHighlights(); }
+  });
+})();
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+
 function init() {
   const keys = Object.keys(RDOD_DATA);
   if (keys.length === 0) {
@@ -1444,7 +1591,6 @@ function init() {
     return;
   }
   renderSidebar();
-  // Navigate to first domain (alphabetically)
   const firstKey = keys.sort()[0];
   navHistory = [];
   navigateTo(firstKey);
