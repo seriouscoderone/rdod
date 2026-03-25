@@ -214,6 +214,24 @@ def check_ref_resolution(specs, result):
                             result.warn("port-resolution", sid,
                                 f"via_port '{port_ref}' not found in {port_domain_id}/ports.yaml")
 
+        # Check verification.yaml contract port_ref fields
+        verif_path = Path(spec.dir) / "verification.yaml"
+        if verif_path.exists():
+            vdata = load_yaml(str(verif_path))
+            if vdata:
+                for contract in vdata.get("contracts", []):
+                    if not isinstance(contract, dict):
+                        continue
+                    port_ref = contract.get("port_ref", "") or contract.get("port", "")
+                    if not port_ref:
+                        continue
+                    port_domain_id = strip_prefix(port_ref.split("/inbound/")[0].split("/outbound/")[0])
+                    if port_domain_id in specs:
+                        target_ports = specs[port_domain_id].port_ids
+                        if target_ports and port_ref not in target_ports:
+                            result.warn("port-resolution", sid,
+                                f"verification contract port_ref '{port_ref}' not found in {port_domain_id}/ports.yaml")
+
 
 def check_protocol_refs(specs, result):
     """Validate typed references in protocols.yaml steps (types://, errors://, verification://)."""
