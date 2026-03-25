@@ -121,6 +121,23 @@ def build_dependency_graph(domains):
                 # Unspecified pattern — assume dependency
                 deps[did].add(ref)
 
+    # Propagate parent dependencies to children.
+    # Children implicitly inherit their parent's kernel and one-way adjacent deps.
+    for did in all_ids:
+        if "/" not in did:
+            continue
+        parent_id = did.rsplit("/", 1)[0]
+        if parent_id not in all_ids:
+            continue
+        for parent_dep in deps[parent_id]:
+            # Don't propagate the child's own siblings or the parent→child edge
+            if parent_dep == did or parent_dep.startswith(did + "/"):
+                continue
+            # Don't propagate sibling subdomains (parent depends on them, child doesn't)
+            if parent_dep.startswith(parent_id + "/"):
+                continue
+            deps[did].add(parent_dep)
+
     return deps, partnerships, kernel_ids
 
 
