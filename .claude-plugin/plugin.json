@@ -9,6 +9,5 @@
   "homepage": "https://github.com/seriouscoderone/rdod",
   "repository": "https://github.com/seriouscoderone/rdod",
   "license": "MIT",
-  "keywords": ["ddd", "domain-driven-design", "architecture", "rdod", "ddd-spec", "software-design", "specification"],
-  "skills": "./skills/"
+  "keywords": ["ddd", "domain-driven-design", "architecture", "rdod", "ddd-spec", "software-design", "specification"]
 }
