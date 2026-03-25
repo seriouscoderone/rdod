@@ -524,12 +524,18 @@ def check_orphans(specs, result):
         for ref in spec.subdomains:
             has_parent.add(strip_prefix(ref))
 
+    # Find all domains referenced as kernels
+    referenced_as_kernel = set()
+    for sid, spec in specs.items():
+        for ref in spec.kernels:
+            referenced_as_kernel.add(strip_prefix(ref))
+
     for sid, spec in specs.items():
         if sid not in has_parent and not spec.clients:
-            # This is a root domain — only warn if it also has no subdomains (isolated)
-            if not spec.subdomains and not spec.adjacents:
+            # This is a root domain — only warn if truly isolated
+            if not spec.subdomains and not spec.adjacents and sid not in referenced_as_kernel:
                 result.warn("orphan-check", sid,
-                    "domain has no clients, no parent, no subdomains, and no adjacents — isolated")
+                    "domain has no clients, no parent, no subdomains, no adjacents, and not referenced as kernel — isolated")
 
 
 def check_duplicate_ports(specs, result):
