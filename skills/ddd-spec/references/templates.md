@@ -431,3 +431,42 @@ The main differences from RDOD's templates:
 - `implementation_guidance` replaces `code_locations` (no code paths yet)
 - `rationale` replaces `evidence` in issues (no code to point at)
 - `source_material` added for provenance tracking
+
+---
+
+## integration-scenarios.yaml — Cross-domain verification (spec root)
+
+One file at the spec root (not per-domain). Defines end-state assertions for each protocol, bridging protocols.yaml (step ordering) and verification.yaml (single-domain invariants) by specifying what must be TRUE across ALL participating domains after a protocol completes.
+
+```yaml
+# integration-scenarios.yaml — lives at the spec root, not per-domain
+scenarios:
+  - name: "<ScenarioName>"
+    protocol: "protocols://<domain>#<ProtocolName>"   # resolves to protocols.yaml
+    description: "<what this scenario verifies>"
+    setup:
+      description: "<initial conditions>"
+      preconditions:
+        - domain: "domain://<participant>"
+          condition: "<what must be true before the protocol starts>"
+    end_state_assertions:
+      - domain: "domain://<participant>"
+        assertion: "<what must be true after protocol succeeds>"
+        verifiable_by: "<how to check — query, inspect state, etc.>"
+    failure_scenarios:
+      - name: "<failure variant name>"
+        inject_failure_at: "<which protocol step fails>"
+        expected_state:
+          - domain: "domain://<participant>"
+            assertion: "<what must be true after this failure>"
+    reference_implementation:
+      source: "<file path or URL to reference test>"
+      notes: "<what the reference test covers>"
+```
+
+**When to create:** After defining protocols in protocols.yaml. Each protocol should have at least one integration scenario (happy path). High-value protocols get failure variants.
+
+**Relationship to other files:**
+- `protocols.yaml` → HOW the flow executes (steps, ordering)
+- `verification.yaml` → WHAT each domain guarantees (invariants)
+- `integration-scenarios.yaml` → WHAT'S TRUE AFTER (cross-domain end-state)

@@ -76,6 +76,12 @@ Up to 7 YAML files per domain (last 4 are optional):
 | **`protocols.yaml`** | Cross-domain orchestration — step sequences, failure paths, compensation |
 | **`verification.yaml`** | Formalized invariants, port contracts, state machines |
 
+**Spec root (cross-domain):**
+
+| File | Purpose |
+|------|---------|
+| **`integration-scenarios.yaml`** | Cross-domain end-state assertions for each protocol |
+
 All refs use URI-style strings: `domain://video-editing`, `port://video-editing/inbound/editing-api`, `kernel://color-lib`.
 
 A JSON schema (`assets/rdod-data.schema.json`) defines the full structure of the generated data, validated via AJV in the browser.

@@ -1,0 +1,27 @@
+# Cross-domain end-state assertions for protocol verification.
+# One file at the spec root (not per-domain — these are cross-domain by definition).
+# Each scenario references a protocol and asserts what must be TRUE across
+# all participating domains after the protocol completes.
+
+scenarios: []
+# - name: ""                    # e.g., "SingleSigInception"
+#   protocol: ""                # protocols://domain#ProtocolName
+#   description: ""             # what this scenario verifies
+#   setup:
+#     description: ""           # initial conditions
+#     preconditions:
+#       - domain: ""            # domain://...
+#         condition: ""         # what must be true before the protocol starts
+#   end_state_assertions:
+#     - domain: ""              # domain://...
+#       assertion: ""           # what must be true after protocol succeeds
+#       verifiable_by: ""       # how to check (query, inspect state, etc.)
+#   failure_scenarios:
+#     - name: ""                # e.g., "Insufficient witnesses"
+#       inject_failure_at: ""   # which protocol step fails
+#       expected_state:
+#         - domain: ""
+#           assertion: ""       # what must be true after this failure
+#   reference_implementation:
+#     source: ""                # e.g., "tests/core/test_eventing.py::test_kever"
+#     notes: ""                 # what the reference test covers

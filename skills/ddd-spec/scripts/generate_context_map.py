@@ -158,10 +158,21 @@ def generate(domains_dir, output, template_path):
         print(f"Template not found: {template_path}", file=sys.stderr)
         sys.exit(1)
 
-    # Inject data and schema
+    # Load integration-scenarios.yaml from spec root (if present)
+    scenarios_path = Path(domains_dir) / "integration-scenarios.yaml"
+    scenarios = []
+    if scenarios_path.exists():
+        sdata = load_domain(str(scenarios_path))
+        if sdata and isinstance(sdata, dict):
+            scenarios = sdata.get("scenarios", [])
+            print(f"Loaded {len(scenarios)} integration scenario(s)")
+
+    # Inject data, scenarios, and schema
     payload = json.dumps(domains, indent=2, ensure_ascii=False)
+    scenarios_payload = json.dumps(scenarios, ensure_ascii=False)
     schema_payload = json.dumps(schema, ensure_ascii=False) if schema else "null"
     html = template.replace("__RDOD_DATA_PLACEHOLDER__", payload)
+    html = html.replace("__RDOD_SCENARIOS_PLACEHOLDER__", scenarios_payload)
     html = html.replace("__RDOD_SCHEMA_PLACEHOLDER__", schema_payload)
 
     # Write output

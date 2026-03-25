@@ -295,6 +295,7 @@
 
 <script>
 const RDOD_DATA = __RDOD_DATA_PLACEHOLDER__;
+const RDOD_SCENARIOS = __RDOD_SCENARIOS_PLACEHOLDER__;
 const RDOD_SCHEMA = __RDOD_SCHEMA_PLACEHOLDER__;
 
 // ── Schema Validation ────────────────────────────────────────────────────────
@@ -1389,6 +1390,48 @@ function renderInfo(domain) {
 
     const totalVerif = props.length + contracts.length + machines.length;
     panel.appendChild(makeSection(`VERIFICATION (${totalVerif})`, verifWrap, true));
+  }
+
+  // ── Integration Scenarios (cross-domain, filtered to this domain) ──
+  if (RDOD_SCENARIOS && RDOD_SCENARIOS.length > 0) {
+    const domainId = stripPrefix(domain.id);
+    const relevant = RDOD_SCENARIOS.filter(s => {
+      if (!s || typeof s !== 'object') return false;
+      const refs = JSON.stringify(s).toLowerCase();
+      return refs.includes(domainId.toLowerCase());
+    });
+    if (relevant.length > 0) {
+      const scenWrap = document.createElement('div');
+      relevant.forEach(s => {
+        const item = document.createElement('div');
+        item.style.cssText = 'padding:6px 0;border-bottom:1px solid #1e2d4a';
+        let html = `<div style="color:#f5c518;font-weight:600;font-size:12px">${esc(s.name || '')}</div>`;
+        if (s.description) html += `<div style="color:#ccc;font-size:12px">${esc(s.description)}</div>`;
+        if (s.protocol) html += `<div style="color:#9b59b6;font-size:10px;margin-top:2px">protocol: ${esc(s.protocol)}</div>`;
+        const assertions = (s.end_state_assertions || []).filter(a => a && typeof a === 'object');
+        if (assertions.length > 0) {
+          html += `<div style="color:#5cb85c;font-size:11px;margin-top:4px;font-weight:600">End-state assertions:</div>`;
+          assertions.forEach(a => {
+            html += `<div style="font-size:11px;padding-left:8px"><span style="color:#4a90d9">${esc(stripPrefix(a.domain || ''))}</span>: ${esc(a.assertion || '')}</div>`;
+            if (a.verifiable_by) html += `<div style="font-size:10px;color:#888;padding-left:16px">verify: ${esc(a.verifiable_by)}</div>`;
+          });
+        }
+        const failures = (s.failure_scenarios || []).filter(f => f && typeof f === 'object');
+        if (failures.length > 0) {
+          html += `<div style="color:#ff6b6b;font-size:11px;margin-top:4px;font-weight:600">Failure scenarios:</div>`;
+          failures.forEach(f => {
+            html += `<div style="font-size:11px;padding-left:8px;color:#e67e22">${esc(f.name || '')}</div>`;
+            if (f.inject_failure_at) html += `<div style="font-size:10px;color:#888;padding-left:16px">inject at: ${esc(f.inject_failure_at)}</div>`;
+          });
+        }
+        if (s.reference_implementation && s.reference_implementation.source) {
+          html += `<div style="font-size:10px;color:#666;margin-top:3px">ref: ${esc(s.reference_implementation.source)}</div>`;
+        }
+        item.innerHTML = html;
+        scenWrap.appendChild(item);
+      });
+      panel.appendChild(makeSection(`INTEGRATION SCENARIOS (${relevant.length})`, scenWrap, true));
+    }
   }
 }
 

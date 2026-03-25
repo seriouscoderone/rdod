@@ -856,6 +856,79 @@ def check_duplicate_errors(specs, result):
                         f"differentiate names or document scope distinction")
 
 
+def check_integration_scenarios(specs, domains_dir, result):
+    """Validate integration-scenarios.yaml at the spec root."""
+    ipath = Path(domains_dir) / "integration-scenarios.yaml"
+    if not ipath.exists():
+        return
+    idata = load_yaml(str(ipath))
+    if not idata:
+        return
+
+    # Build protocol registry: {domain_id: {protocol_name}}
+    proto_registry = {}
+    for sid, spec in specs.items():
+        ppath = Path(spec.dir) / "protocols.yaml"
+        if not ppath.exists():
+            continue
+        pdata = load_yaml(str(ppath))
+        if not pdata:
+            continue
+        names = set()
+        for p in pdata.get("protocols", []):
+            if isinstance(p, dict) and p.get("name"):
+                names.add(p["name"])
+        if names:
+            proto_registry[sid] = names
+
+    for scenario in idata.get("scenarios", []):
+        if not isinstance(scenario, dict):
+            continue
+        sname = scenario.get("name", "?")
+
+        # Validate protocol ref
+        pref = scenario.get("protocol", "")
+        if pref:
+            scheme, domain_path, proto_name = parse_typed_ref(pref)
+            if scheme == "protocols" and domain_path:
+                if domain_path not in specs:
+                    result.warn("integration-scenarios", sname,
+                        f"protocol ref '{pref}' targets unknown domain '{domain_path}'")
+                elif proto_name and domain_path in proto_registry:
+                    if proto_name not in proto_registry[domain_path]:
+                        result.warn("integration-scenarios", sname,
+                            f"protocol ref '{pref}' — '{proto_name}' not found in {domain_path}/protocols.yaml")
+
+        # Validate domain refs in assertions
+        for assertion in scenario.get("end_state_assertions", []):
+            if isinstance(assertion, dict) and assertion.get("domain"):
+                dref = strip_prefix(assertion["domain"])
+                if dref and dref not in specs:
+                    result.warn("integration-scenarios", sname,
+                        f"end_state assertion references unknown domain '{dref}'")
+
+        # Validate domain refs in preconditions
+        setup = scenario.get("setup", {})
+        if isinstance(setup, dict):
+            for pre in setup.get("preconditions", []):
+                if isinstance(pre, dict) and pre.get("domain"):
+                    dref = strip_prefix(pre["domain"])
+                    if dref and dref not in specs:
+                        result.warn("integration-scenarios", sname,
+                            f"precondition references unknown domain '{dref}'")
+
+        # Validate failure scenario domain refs
+        for fail in scenario.get("failure_scenarios", []):
+            if not isinstance(fail, dict):
+                continue
+            for state in fail.get("expected_state", []):
+                if isinstance(state, dict) and state.get("domain"):
+                    dref = strip_prefix(state["domain"])
+                    if dref and dref not in specs:
+                        result.warn("integration-scenarios", f"{sname}/{fail.get('name', '?')}",
+                            f"failure state references unknown domain '{dref}'")
+
+
 def check_escrow_references(specs, result):
     """Cross-reference escrow_queue fields against UL terms."""
     all_terms = set()
@@ -1103,7 +1176,7 @@ RULE_CATEGORIES = {
     "schema": [check_schema_conformance],
     "completeness": [check_completeness, check_orphans],
     "hierarchy": [check_folder_hierarchy],
-    "cross-refs": [check_type_references, check_typeref_syntax, check_duplicate_errors, check_escrow_references],
+    "cross-refs": [check_type_references, check_typeref_syntax, check_duplicate_errors, check_escrow_references, check_integration_scenarios],
     "yaml-structure": [check_section_item_types, check_duplicate_yaml_keys, check_section_ordering, check_term_count],
     "depth-audit": [check_source_material_coverage, check_type_variant_completeness],
 }
@@ -1129,7 +1202,7 @@ def validate(domains_dir, strict=False, rules=None):
     for cat in categories:
         if cat in RULE_CATEGORIES:
             for check_fn in RULE_CATEGORIES[cat]:
-                if check_fn in (check_folder_hierarchy,):
+                if check_fn in (check_folder_hierarchy, check_integration_scenarios):
                     check_fn(specs, domains_dir, result)
                 else:
                     check_fn(specs, result)

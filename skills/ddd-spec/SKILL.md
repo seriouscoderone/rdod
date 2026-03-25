@@ -124,6 +124,9 @@ See `references/templates.md` for all YAML template schemas with full field desc
 - `protocols.yaml` — cross-domain orchestration sequences with failure paths
 - `verification.yaml` — formalized invariants, port contracts, state machines
 
+**Spec root (cross-domain):**
+- `integration-scenarios.yaml` — cross-domain end-state assertions for each protocol
+
 ## Specification Generation Methodology
 
 See `references/expansion.md` for the step-by-step expansion loop to discover domains from requirements, user input, or domain documents, fill templates iteratively, and verify completeness.

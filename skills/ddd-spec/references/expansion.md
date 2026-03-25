@@ -270,6 +270,18 @@ Repeat Steps 5a–5e for the new domain.
 
 ---
 
+### Step 6b — Write integration scenarios (after all domains are complete)
+
+After all domains have protocols.yaml, write `integration-scenarios.yaml` at the spec root. For each protocol, define what must be TRUE across all participating domains after the protocol completes:
+
+1. **Happy path**: setup preconditions → end-state assertions across domains → how to verify each
+2. **Failure variants**: inject failure at a specific step → expected degraded state across domains
+3. **Reference implementation**: link to existing test code or source material
+
+This bridges the gap between protocols.yaml (step ordering) and verification.yaml (single-domain invariants). One file at the spec root — these are cross-domain by definition.
+
+---
+
 ### Step 7 — Consolidation checkpoint
 
 After every 3–5 domains are filled, pause and perform:
