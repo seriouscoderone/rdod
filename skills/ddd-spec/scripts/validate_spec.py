@@ -894,7 +894,11 @@ def check_duplicate_errors(specs, result):
             continue
         for i, d1 in enumerate(domains):
             for d2 in domains[i+1:]:
-                if d1.startswith(d2 + "/") or d2.startswith(d1 + "/"):
+                is_parent_child = d1.startswith(d2 + "/") or d2.startswith(d1 + "/")
+                parent1 = d1.rsplit("/", 1)[0] if "/" in d1 else ""
+                parent2 = d2.rsplit("/", 1)[0] if "/" in d2 else ""
+                is_sibling = parent1 and parent1 == parent2
+                if is_parent_child or is_sibling:
                     result.warn("duplicate-error", d1,
                         f"error '{name}' defined in both '{d1}' and '{d2}' — "
                         f"differentiate names or document scope distinction")
