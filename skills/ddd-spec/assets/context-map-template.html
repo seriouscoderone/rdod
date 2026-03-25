@@ -76,6 +76,8 @@
     color: #bbb;
   }
   #domain-list li:hover { background: #0f3460; color: #e0e0e0; }
+  #domain-list li.layer-header { color: #666; font-size: 10px; font-weight: 700; letter-spacing: 1.5px; padding: 10px 10px 3px; cursor: default; border-left: none; border-bottom: 1px solid #1e2d4a; margin-top: 4px; }
+  #domain-list li.layer-header:hover { background: transparent; color: #666; }
   #domain-list li.active { border-left-color: #f5c518; color: #f5c518; background: #0f3460; }
   #domain-list .tree-label {
     display: flex;
@@ -488,9 +490,34 @@ function renderSidebar(filter) {
     return;
   }
 
-  // Tree mode: hierarchical view
+  // Tree mode: hierarchical view grouped by architecture layer
   initCollapsed();
   const { roots, parentToChildren } = buildTree();
+
+  // Build kernel set: domains referenced via kernel:// by any domain
+  const kernelIds = new Set();
+  allDomains().forEach(d => {
+    getList(d, 'kernels').forEach(ref => kernelIds.add(stripPrefix(ref)));
+  });
+
+  // Classify root domains into architecture layers
+  function getLayer(id) {
+    if (kernelIds.has(id)) return 'kernel';
+    const d = getDomain(id);
+    if (!d) return 'domain';
+    const st = (d.implementation_guidance && d.implementation_guidance.suggested_type || '').toLowerCase();
+    const intent = (d.intent || '').toLowerCase();
+    if (st === 'service' || intent === 'orchestrator' || id.endsWith('-service')) return 'service';
+    if (st === 'app' || st === 'application' || intent === 'facade') return 'application';
+    return 'domain';
+  }
+
+  const layerOrder = ['kernel', 'domain', 'service', 'application'];
+  const layerLabels = { kernel: 'KERNELS', domain: 'DOMAINS', service: 'SERVICES', application: 'APPLICATIONS' };
+  const grouped = { kernel: [], domain: [], service: [], application: [] };
+  roots.forEach(id => {
+    grouped[getLayer(id)].push(id);
+  });
 
   function renderNode(id, depth) {
     const d = getDomain(id);
@@ -545,7 +572,16 @@ function renderSidebar(filter) {
     }
   }
 
-  roots.forEach(id => renderNode(id, 0));
+  // Render each non-empty layer with a header
+  layerOrder.forEach(layer => {
+    const ids = grouped[layer];
+    if (ids.length === 0) return;
+    const header = document.createElement('li');
+    header.className = 'layer-header';
+    header.textContent = layerLabels[layer];
+    list.appendChild(header);
+    ids.forEach(id => renderNode(id, 0));
+  });
 }
 
 document.getElementById('search').addEventListener('input', e => {
