@@ -554,11 +554,27 @@ document.getElementById('search').addEventListener('input', e => {
 
 // ── Breadcrumb ────────────────────────────────────────────────────────────────
 
+function getHierarchyPath(domainId) {
+  // Build path from root to domainId using the subdomain tree (mirrors sidebar)
+  // e.g., "keri/identity/delegation" → ["keri", "keri/identity", "keri/identity/delegation"]
+  const parts = domainId.split('/');
+  const path = [];
+  for (let i = 1; i <= parts.length; i++) {
+    const ancestor = parts.slice(0, i).join('/');
+    if (getDomain(ancestor)) path.push(ancestor);
+  }
+  // If path doesn't include domainId (domain id doesn't match folder path), just show the id
+  if (path.length === 0 || path[path.length - 1] !== domainId) {
+    path.push(domainId);
+  }
+  return path;
+}
+
 function renderBreadcrumb() {
   const el = document.getElementById('breadcrumb');
   el.innerHTML = '';
-  const all = [...navHistory, currentId];
-  all.forEach((id, i) => {
+  const path = getHierarchyPath(currentId);
+  path.forEach((id, i) => {
     if (i > 0) {
       const sep = document.createElement('span');
       sep.className = 'sep';
@@ -567,18 +583,11 @@ function renderBreadcrumb() {
     }
     const span = document.createElement('span');
     const d = getDomain(id);
-    span.className = 'crumb' + (i === all.length - 1 ? ' current' : '');
+    span.className = 'crumb' + (i === path.length - 1 ? ' current' : '');
     span.textContent = (d && d.name) ? d.name : id;
     span.title = id;
-    if (i < all.length - 1) {
-      span.addEventListener('click', () => {
-        // Jump to this crumb: restore history up to i
-        const targetHistory = all.slice(0, i);
-        navHistory = targetHistory;
-        currentId = null;
-        navigateTo(id);
-        navHistory = targetHistory;
-      });
+    if (i < path.length - 1) {
+      span.addEventListener('click', () => navigateTo(id));
     }
     el.appendChild(span);
   });
