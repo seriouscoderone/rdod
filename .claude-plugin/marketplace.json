@@ -7,11 +7,14 @@
   "plugins": [
     {
       "name": "domain-design-toolkit",
+      "source": "./",
       "description": "RDOD for analyzing existing codebases + DDD-Spec for generating domain specifications from scratch. Both produce compatible domain.yaml files.",
-      "source": {
-        "source": "github",
-        "repo": "seriouscoderone/rdod"
-      }
+      "version": "1.1.0",
+      "author": {
+        "name": "seriouscoderone"
+      },
+      "keywords": ["ddd", "domain-driven-design", "architecture", "rdod", "ddd-spec"],
+      "category": "software-design"
     }
   ]
 }
