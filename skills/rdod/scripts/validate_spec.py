@@ -804,7 +804,21 @@ def check_type_references(specs, result):
                         continue
                     if ftype.startswith("array[") or ftype.startswith("map["):
                         continue
-                    if ftype.startswith("TypeRef:"):
+                    if ftype.startswith("types://"):
+                        # Standard URI syntax — validate target
+                        ref_part = ftype[len("types://"):]
+                        if "#" in ref_part:
+                            domain, type_name = ref_part.split("#", 1)
+                            if "/" in type_name:
+                                type_name = type_name.split("/")[0]
+                            if domain not in specs:
+                                result.warn("type-ref", sid,
+                                    f"types ref '{ftype}' in {tname}.{fname} — domain '{domain}' not found")
+                            elif type_name and type_name not in local_types.get(domain, set()):
+                                result.warn("type-ref", sid,
+                                    f"types ref '{ftype}' in {tname}.{fname} — type '{type_name}' not in {domain}/types.yaml")
+                    elif ftype.startswith("TypeRef:"):
+                        # Non-standard syntax — validate target but also flag syntax
                         ref_part = ftype[len("TypeRef:"):]
                         if "#" in ref_part:
                             domain, type_name = ref_part.split("#", 1)
@@ -822,7 +836,7 @@ def check_type_references(specs, result):
 
 
 def check_typeref_syntax(specs, result):
-    """Enforce TypeRef: prefix for cross-domain type references."""
+    """Flag non-standard TypeRef: syntax and bare cross-domain type refs."""
     _, local_types = _load_types_registry(specs)
 
     for sid, spec in specs.items():
@@ -844,12 +858,18 @@ def check_typeref_syntax(specs, result):
                     fname = field.get("name", "?")
                     if not ftype or ftype.lower() in PRIMITIVE_TYPES:
                         continue
-                    if ftype.startswith("array[") or ftype.startswith("map[") or ftype.startswith("TypeRef:"):
+                    if ftype.startswith("array[") or ftype.startswith("map[") or ftype.startswith("types://"):
                         continue
-                    # Bare type name that's not local → should use TypeRef:
+                    # Non-standard TypeRef: syntax → recommend types://
+                    if ftype.startswith("TypeRef:"):
+                        fixed = ftype.replace("TypeRef:", "types://")
+                        result.warn("typeref-syntax", sid,
+                            f"'{ftype}' in {tname}.{fname} uses non-standard 'TypeRef:' — use 'types://' instead: {fixed}")
+                        continue
+                    # Bare type name that's not local → needs types:// prefix
                     if ftype not in local:
                         result.warn("typeref-syntax", sid,
-                            f"bare type '{ftype}' in {tname}.{fname} — use TypeRef:domain#Type for cross-domain refs")
+                            f"bare type '{ftype}' in {tname}.{fname} — use types://domain#Type for cross-domain refs")
 
 
 def check_duplicate_errors(specs, result):
@@ -1135,6 +1155,20 @@ def fix_yaml_structure(specs):
             with open(filepath, "w") as f:
                 yaml.dump(ordered, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
             fixed.append(f"{sid}/ubiquitous-language.yaml")
+
+    # Fix TypeRef: → types:// in types.yaml files
+    for sid, spec in specs.items():
+        tpath = Path(spec.dir) / "types.yaml"
+        if not tpath.exists():
+            continue
+        try:
+            content = tpath.read_text(encoding="utf-8")
+        except (IOError, OSError):
+            continue
+        if "TypeRef:" in content:
+            content = content.replace("TypeRef:", "types://")
+            tpath.write_text(content, encoding="utf-8")
+            fixed.append(f"{sid}/types.yaml")
 
     return fixed
 
