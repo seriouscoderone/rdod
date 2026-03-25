@@ -143,6 +143,18 @@ python validate_spec.py rdod/spec/domains --fix
 python validate_spec.py rdod/spec/domains --json
 ```
 
+## Build Order Generator
+
+Generate a topologically sorted implementation roadmap from domain dependencies:
+
+```bash
+python skills/rdod/scripts/build_order.py rdod/spec/domains
+python skills/rdod/scripts/build_order.py rdod/spec/domains --mermaid   # mermaid diagram
+python skills/rdod/scripts/build_order.py rdod/spec/domains --json      # structured JSON
+```
+
+Computes layers from kernels, subdomains, conformist/customer-supplier adjacents, and partnership groupings. Child subdomains inherit parent dependencies so leaf domains don't appear as false "no dependencies" starting points.
+
 ## Published Language Boundaries
 
 Formal term ownership across domain boundaries:
