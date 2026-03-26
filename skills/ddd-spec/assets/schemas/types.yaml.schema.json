@@ -23,7 +23,8 @@
               "additionalProperties": false,
               "properties": {
                 "format": { "type": "string" },
-                "rules": { "type": "string" }
+                "rules": { "type": "string" },
+                "notes": { "type": "string" }
               }
             }
           },
@@ -37,6 +38,7 @@
                 "name": { "type": "string" },
                 "description": { "type": "string" },
                 "invariants": { "type": "array" },
+                "examples": { "type": "array" },
                 "fields": {
                   "type": "array",
                   "items": {

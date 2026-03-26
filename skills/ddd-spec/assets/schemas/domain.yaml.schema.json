@@ -119,9 +119,12 @@
         "additionalProperties": false,
         "properties": {
           "name": { "type": "string" },
+          "id": { "type": "string" },
           "abstraction": { "type": "string" },
           "ref": { "type": "string" },
-          "implementation_notes": { "type": "string" }
+          "implementation_notes": { "type": "string" },
+          "relationship": { "type": "string" },
+          "source": { "type": "string" }
         }
       }
     },
