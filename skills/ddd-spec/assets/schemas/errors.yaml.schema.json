@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RDOD errors.yaml",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "domain_ref": { "type": "string" },
+    "errors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "cause": { "type": "string" },
+          "recovery": { "type": "string", "enum": ["retry", "escrow", "escalate", "abort", "ignore"] },
+          "severity": { "type": "string", "enum": ["fatal", "recoverable", "transient"] },
+          "related_port": { "type": "string" },
+          "escrow_queue": { "type": "string" },
+          "context": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "field": { "type": "string" },
+                "type": { "type": "string" },
+                "description": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

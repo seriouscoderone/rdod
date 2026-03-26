@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RDOD verification.yaml",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "domain_ref": { "type": "string" },
+    "properties": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "invariant": { "type": "string" },
+          "term": { "type": "string" },
+          "name": { "type": "string" },
+          "technique": { "type": "string", "enum": ["property-based", "smt", "symbolic"] },
+          "formal": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "language": { "type": "string" },
+              "expression": { "type": "string" }
+            }
+          },
+          "strategy": { "type": "string" },
+          "notes": { "type": "string" }
+        }
+      }
+    },
+    "contracts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "port_ref": { "type": "string" },
+          "port": { "type": "string" },
+          "preconditions": { "type": "array" },
+          "postconditions": { "type": "array" },
+          "precondition": { "type": "string" },
+          "postcondition": { "type": "string" }
+        }
+      }
+    },
+    "state_machines": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string" },
+          "term": { "type": "string" },
+          "states": { "type": "array" },
+          "transitions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "from": { "type": "string" },
+                "to": { "type": "string" },
+                "trigger": { "type": "string" },
+                "guard": { "type": "string" }
+              }
+            }
+          },
+          "invariants": { "type": "array" },
+          "initial_state": { "type": "string" },
+          "terminal_states": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "validation_constraints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "constraint"],
+        "properties": {
+          "id": { "type": "string" },
+          "constraint": { "type": "string" },
+          "depends_on": { "type": "array", "items": { "type": "string" } },
+          "on_failure": { "type": ["string", "null"] }
+        }
+      }
+    }
+  }
+}

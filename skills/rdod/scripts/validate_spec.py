@@ -763,65 +763,76 @@ def check_implementation_vocabulary(specs, result):
                             f"term '{term['term']}' formal expression contains test framework terms")
 
 
+def _load_json_schemas():
+    """Load per-file JSON schemas from assets/schemas/. Returns {filename: schema_dict}."""
+    schemas_dir = Path(__file__).parent / ".." / "assets" / "schemas"
+    schemas = {}
+    if not schemas_dir.exists():
+        return schemas
+    for schema_file in schemas_dir.glob("*.schema.json"):
+        yaml_filename = schema_file.name.replace(".schema.json", "")
+        try:
+            with open(schema_file, "r", encoding="utf-8") as f:
+                schemas[yaml_filename] = json.load(f)
+        except Exception:
+            pass
+    return schemas
+
+
+def _validate_against_schema(data, schema, filename, sid, result):
+    """Validate a YAML data dict against a JSON schema. Reports errors/warnings."""
+    try:
+        import jsonschema
+        validator = jsonschema.Draft202012Validator(schema)
+        for error in validator.iter_errors(data):
+            path = ".".join(str(p) for p in error.absolute_path) if error.absolute_path else "(root)"
+            msg = error.message
+            # additionalProperties violations are warnings (extra fields)
+            if "Additional properties" in msg or "additionalProperties" in msg:
+                result.warn("schema", sid, f"{filename} [{path}]: {msg}")
+            else:
+                result.error("schema", sid, f"{filename} [{path}]: {msg}")
+    except ImportError:
+        # jsonschema not installed — fall back to basic field checks
+        _check_schema_basic(data, filename, sid, result)
+
+
+def _check_schema_basic(data, filename, sid, result):
+    """Basic field validation when jsonschema is not installed."""
+    if filename == "domain.yaml":
+        for field in ("id", "name", "description"):
+            if not data.get(field):
+                result.error("schema", sid, f"{filename}: missing required field '{field}'")
+
+
 def check_schema_conformance(specs, result):
-    """Validate required fields per file type."""
+    """Validate YAML files against JSON schemas (additionalProperties: false)."""
+    schemas = _load_json_schemas()
+
     for sid, spec in specs.items():
         domain_dir = Path(spec.dir)
 
-        # Validate ports.yaml entries
-        for port in spec.ports:
-            if not port.get("id"):
-                result.error("schema", sid, f"port missing required field: id")
-            if not port.get("type"):
-                result.error("schema", sid, f"port '{port.get('name', '?')}' missing required field: type")
-            if not port.get("name"):
-                result.error("schema", sid, f"port '{port.get('id', '?')}' missing required field: name")
+        # Validate domain.yaml
+        if "domain.yaml" in schemas:
+            _validate_against_schema(spec.data, schemas["domain.yaml"], "domain.yaml", sid, result)
 
-        # Validate UL terms
-        for term in spec.terms:
-            if not term.get("definition"):
-                result.warn("schema", sid, f"term '{term['term']}' missing definition")
+        # Validate ubiquitous-language.yaml
+        if "ubiquitous-language.yaml" in schemas and spec.lang_data:
+            _validate_against_schema(spec.lang_data, schemas["ubiquitous-language.yaml"],
+                                     "ubiquitous-language.yaml", sid, result)
 
-        # Validate errors.yaml
-        errors_path = domain_dir / "errors.yaml"
-        if errors_path.exists():
-            edata = load_yaml(str(errors_path))
-            if edata:
-                for err in edata.get("errors", []):
-                    if isinstance(err, dict):
-                        for req in ["name", "description", "cause", "recovery", "severity"]:
-                            if not err.get(req):
-                                result.warn("schema", sid,
-                                    f"errors.yaml: error '{err.get('name', '?')}' missing field: {req}")
+        # Validate ports.yaml
+        if "ports.yaml" in schemas and spec.ports_data:
+            _validate_against_schema(spec.ports_data, schemas["ports.yaml"],
+                                     "ports.yaml", sid, result)
 
-        # Validate types.yaml
-        types_path = domain_dir / "types.yaml"
-        if types_path.exists():
-            tdata = load_yaml(str(types_path))
-            if tdata:
-                for t in tdata.get("types", []):
-                    if isinstance(t, dict):
-                        if not t.get("name"):
-                            result.error("schema", sid, "types.yaml: type missing required field: name")
-                        if not t.get("variants") and not t.get("fields"):
-                            result.warn("schema", sid,
-                                f"types.yaml: type '{t.get('name', '?')}' has no variants or fields")
-
-        # Validate protocols.yaml
-        proto_path = domain_dir / "protocols.yaml"
-        if proto_path.exists():
-            pdata = load_yaml(str(proto_path))
-            if pdata:
-                for p in pdata.get("protocols", []):
-                    if isinstance(p, dict):
-                        if not p.get("name"):
-                            result.error("schema", sid, "protocols.yaml: protocol missing required field: name")
-                        if not p.get("steps"):
-                            result.warn("schema", sid,
-                                f"protocols.yaml: protocol '{p.get('name', '?')}' has no steps")
-                        if not p.get("participants"):
-                            result.warn("schema", sid,
-                                f"protocols.yaml: protocol '{p.get('name', '?')}' has no participants")
+        # Validate optional companion files
+        for fname in ["errors.yaml", "types.yaml", "protocols.yaml", "verification.yaml"]:
+            fpath = domain_dir / fname
+            if fpath.exists() and fname in schemas:
+                fdata = load_yaml(str(fpath))
+                if fdata:
+                    _validate_against_schema(fdata, schemas[fname], fname, sid, result)
 
 
 # ── Cross-Reference Rules ─────────────────────────────────────────────────────

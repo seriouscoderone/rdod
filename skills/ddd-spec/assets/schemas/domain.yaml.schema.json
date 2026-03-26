@@ -1,0 +1,173 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RDOD domain.yaml",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "name", "description"],
+  "properties": {
+    "template_version": { "type": "string" },
+    "id": { "type": "string" },
+    "name": { "type": "string" },
+    "description": { "type": "string" },
+    "version": { "type": "string" },
+    "intent": { "type": "string", "enum": ["", "core", "adapter", "orchestrator", "facade"] },
+    "source_material": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "type": { "type": "string" },
+          "reference": { "type": "string" }
+        }
+      }
+    },
+    "published_language": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["term"],
+        "properties": {
+          "term": { "type": "string" },
+          "description": { "type": "string" }
+        }
+      }
+    },
+    "domain_clients": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          { "type": "string" },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["ref"],
+            "properties": {
+              "ref": { "type": "string" },
+              "name": { "type": "string" },
+              "relationship": { "type": "string" },
+              "via_port": { "type": "string" },
+              "pattern": { "type": "string" }
+            }
+          }
+        ]
+      }
+    },
+    "subdomains": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          { "type": "string" },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["ref"],
+            "properties": {
+              "ref": { "type": "string" },
+              "name": { "type": "string" },
+              "relationship": { "type": "string" },
+              "via_port": { "type": "string" }
+            }
+          }
+        ]
+      }
+    },
+    "kernels": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          { "type": "string" },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["ref"],
+            "properties": {
+              "ref": { "type": "string" },
+              "source": { "type": "string" },
+              "relationship": { "type": "string" }
+            }
+          }
+        ]
+      }
+    },
+    "adjacents": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          { "type": "string" },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["ref"],
+            "properties": {
+              "ref": { "type": "string" },
+              "name": { "type": "string" },
+              "relationship": { "type": "string" },
+              "pattern": { "type": "string" },
+              "via_port": { "type": "string" },
+              "is_cross_cutting": { "type": "boolean" }
+            }
+          }
+        ]
+      }
+    },
+    "externals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string" },
+          "abstraction": { "type": "string" },
+          "ref": { "type": "string" },
+          "implementation_notes": { "type": "string" }
+        }
+      }
+    },
+    "code_locations": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          { "type": "string" },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "path": { "type": "string" },
+              "type": { "type": "string" }
+            }
+          }
+        ]
+      }
+    },
+    "implementation_guidance": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "suggested_type": { "type": "string" },
+        "language_affinity": { "type": "string" },
+        "notes": { "type": "string" }
+      }
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "ref": { "type": "string" },
+          "category": { "type": "string" },
+          "severity": { "type": "string", "enum": ["low", "medium", "high", "critical"] },
+          "description": { "type": "string" },
+          "evidence": { "type": "string" },
+          "rationale": { "type": "string" },
+          "recommendation": { "type": "string" }
+        }
+      }
+    },
+    "tags": { "type": "array", "items": { "type": "string" } },
+    "invariants": { "type": "array" },
+    "ubiquitous_language": { "type": "array" }
+  }
+}

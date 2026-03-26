@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RDOD ubiquitous-language.yaml",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "domain_ref": { "type": "string" },
+    "imports": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["term", "from"],
+        "properties": {
+          "term": { "type": "string" },
+          "from": { "type": "string" },
+          "usage": { "type": "string" }
+        }
+      }
+    },
+    "terms": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["term", "definition"],
+        "properties": {
+          "term": { "type": "string" },
+          "definition": { "type": "string" },
+          "synonyms": { "type": "array", "items": { "type": "string" } },
+          "pattern": { "type": "string" },
+          "specializes": { "type": "string" },
+          "invariants": { "type": "array" },
+          "examples": { "type": "array" },
+          "related_terms": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "events": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string" },
+          "payload": { "type": "string" },
+          "triggers": { "type": "string" }
+        }
+      }
+    },
+    "rules": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}
