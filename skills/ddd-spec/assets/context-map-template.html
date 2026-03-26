@@ -1348,7 +1348,8 @@ function renderInfo(domain) {
 
   // ── Verification ──
   const verif = domain._verification;
-  if (verif && (verif.properties && verif.properties.length || verif.contracts && verif.contracts.length || verif.state_machines && verif.state_machines.length)) {
+  const vConstraints = (verif && verif.validation_constraints || []);
+  if (verif && (verif.properties && verif.properties.length || verif.contracts && verif.contracts.length || verif.state_machines && verif.state_machines.length || vConstraints.length)) {
     const verifWrap = document.createElement('div');
     const props = (verif.properties || []);
     const contracts = (verif.contracts || []);
@@ -1404,7 +1405,26 @@ function renderInfo(domain) {
       });
     }
 
-    const totalVerif = props.length + contracts.length + machines.length;
+    if (vConstraints.length > 0) {
+      const vh = document.createElement('div');
+      vh.style.cssText = 'color:#f5c518;font-weight:600;font-size:11px;margin-top:6px';
+      vh.textContent = `CONSTRAINT GRAPH (${vConstraints.length})`;
+      verifWrap.appendChild(vh);
+      vConstraints.forEach(c => {
+        if (!c || typeof c !== 'object') return;
+        const item = document.createElement('div');
+        item.style.cssText = 'padding:3px 0;font-size:11px;border-bottom:1px solid #1e2d4a';
+        const deps = (c.depends_on || []).join(', ') || 'none';
+        let html = `<span style="color:#4a90d9">${esc(c.id || '')}</span>`;
+        html += `<div style="color:#ccc;font-size:11px;padding-left:8px">${esc(c.constraint || '')}</div>`;
+        html += `<div style="color:#888;font-size:10px;padding-left:8px">depends: ${esc(deps)}</div>`;
+        if (c.on_failure) html += `<div style="color:#ff6b6b;font-size:10px;padding-left:8px">on_failure: ${esc(c.on_failure)}</div>`;
+        item.innerHTML = html;
+        verifWrap.appendChild(item);
+      });
+    }
+
+    const totalVerif = props.length + contracts.length + machines.length + vConstraints.length;
     panel.appendChild(makeSection(`VERIFICATION (${totalVerif})`, verifWrap, true));
   }
 

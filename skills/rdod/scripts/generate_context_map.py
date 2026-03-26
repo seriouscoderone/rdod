@@ -72,6 +72,7 @@ def enrich_domain(data, domain_dir):
                 "properties": verify_data.get("properties", []),
                 "contracts": verify_data.get("contracts", []),
                 "state_machines": verify_data.get("state_machines", []),
+                "validation_constraints": verify_data.get("validation_constraints", []),
             }
 
     # Load errors.yaml

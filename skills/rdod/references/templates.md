@@ -372,7 +372,22 @@ state_machines:
     invariants: ["<holds across all states>"]
     initial_state: "<state>"
     terminal_states: ["<state>"]
+
+# Validation constraint graphs (optional)
+# Declarative DAGs that express validation pipelines as constraint dependencies.
+# AIs can derive evaluation order, identify parallelizable branches, and compose constraints.
+validation_constraints:
+  - id: "<unique constraint ID>"           # e.g., "C1_sigs_valid"
+    constraint: "<declarative rule>"       # what must be true
+    depends_on: ["<constraint ID>"]        # IDs that must be satisfied first
+    on_failure: "<escrow | reject | etc>"  # what happens on failure
 ```
+
+**Relationship to other verification sections:**
+- **properties**: individual invariants ("X MUST be true") — no ordering
+- **contracts**: pre/postconditions on ports — per-operation, not pipeline
+- **state_machines**: state transitions — event-driven, not constraint-driven
+- **validation_constraints**: ordered constraint DAGs — composable, topologically sortable
 
 ---
 

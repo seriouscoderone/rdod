@@ -41,3 +41,12 @@ state_machines: []
 #   invariants: []
 #   initial_state: ""
 #   terminal_states: []
+
+# Validation constraint graphs (optional — declarative ordering of validation steps)
+# Expresses validation pipelines as DAGs with dependencies, enabling AIs to derive
+# evaluation order, identify parallelizable branches, and compose constraints across domains.
+validation_constraints: []
+# - id: ""                  # unique constraint identifier (e.g., "C1_sigs_valid")
+#   constraint: ""          # declarative rule — what must be true
+#   depends_on: []          # list of constraint IDs that must be satisfied first
+#   on_failure: ""          # what happens if this fails (escrow, reject, etc.)

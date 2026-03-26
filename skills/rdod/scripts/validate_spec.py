@@ -611,6 +611,67 @@ def check_verification_quality(specs, result):
                                     f"verification expression tests attributes: '{expr[:80]}'")
 
 
+def check_validation_constraints(specs, result):
+    """Validate constraint graph: depends_on refs resolve, no cycles."""
+    for sid, spec in specs.items():
+        vpath = Path(spec.dir) / "verification.yaml"
+        if not vpath.exists():
+            continue
+        vdata = load_yaml(str(vpath))
+        if not vdata:
+            continue
+        constraints = vdata.get("validation_constraints", [])
+        if not constraints:
+            continue
+
+        # Build ID set
+        ids = set()
+        for c in constraints:
+            if isinstance(c, dict) and c.get("id"):
+                if c["id"] in ids:
+                    result.warn("constraints", sid,
+                        f"duplicate constraint id '{c['id']}'")
+                ids.add(c["id"])
+
+        # Validate depends_on refs
+        graph = {}
+        for c in constraints:
+            if not isinstance(c, dict) or not c.get("id"):
+                continue
+            cid = c["id"]
+            deps = c.get("depends_on", []) or []
+            graph[cid] = []
+            for dep in deps:
+                if dep not in ids:
+                    result.warn("constraints", sid,
+                        f"constraint '{cid}' depends_on '{dep}' which does not exist")
+                else:
+                    graph[cid].append(dep)
+
+        # Cycle detection via DFS
+        WHITE, GRAY, BLACK = 0, 1, 2
+        color = {cid: WHITE for cid in graph}
+
+        def has_cycle(node, path):
+            color[node] = GRAY
+            for dep in graph.get(node, []):
+                if dep not in color:
+                    continue
+                if color[dep] == GRAY:
+                    cycle_path = path + [node, dep]
+                    result.error("constraints", sid,
+                        f"cycle in validation_constraints: {' → '.join(cycle_path)}")
+                    return True
+                if color[dep] == WHITE and has_cycle(dep, path + [node]):
+                    return True
+            color[node] = BLACK
+            return False
+
+        for cid in graph:
+            if color.get(cid) == WHITE:
+                has_cycle(cid, [])
+
+
 def check_missing_files(specs, result):
     """Check for missing companion files and empty templates."""
     for sid, spec in specs.items():
@@ -1232,7 +1293,7 @@ RULE_CATEGORIES = {
     "cycles": [check_cycles],
     "terms": [check_published_language, check_term_uniqueness],
     "ports": [check_duplicate_ports],
-    "verification": [check_verification_quality],
+    "verification": [check_verification_quality, check_validation_constraints],
     "files": [check_missing_files],
     "vocabulary": [check_implementation_vocabulary],
     "schema": [check_schema_conformance],
