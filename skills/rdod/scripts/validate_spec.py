@@ -1189,7 +1189,18 @@ def check_contract_type_refs(specs, result):
         for t in spec.terms:
             all_term_names.add(t.get("term", ""))
 
-    known = all_type_names | all_term_names | all_error_names | BUILTINS | whitelist
+    # Collect port-local type names across all ports
+    all_port_local_types = set()
+    port_local_by_domain = defaultdict(set)
+    for sid, spec in specs.items():
+        for port in spec.ports:
+            local_types = port.get("types", {})
+            if isinstance(local_types, dict):
+                for tname in local_types:
+                    all_port_local_types.add(tname)
+                    port_local_by_domain[sid].add(tname)
+
+    known = all_type_names | all_term_names | all_error_names | all_port_local_types | BUILTINS | whitelist
 
     for sid, spec in specs.items():
         for port in spec.ports:
@@ -1201,7 +1212,14 @@ def check_contract_type_refs(specs, result):
                 if ident not in known:
                     result.warn("contract-type-ref", sid,
                         f"port '{port.get('name', port.get('id', '?'))}' contract references "
-                        f"type '{ident}' — not found in any types.yaml or UL terms")
+                        f"type '{ident}' — not found in any types.yaml, errors.yaml, or UL terms")
+
+    # Info: suggest moving port-local types to types.yaml
+    for sid, local_names in port_local_by_domain.items():
+        if local_names:
+            result.info("port-local-types", sid,
+                f"port(s) define types locally — consider moving {', '.join(sorted(local_names))} "
+                f"to {sid}/types.yaml for discoverability")
 
 
 # ── YAML Structure Rules ──────────────────────────────────────────────────────
