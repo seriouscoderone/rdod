@@ -455,19 +455,52 @@ def check_published_language(specs, result):
                         result.error("published-no-redefinition", sid,
                             f"term '{term_name}' is published by {owner_ids[0]} but redefined locally without import or specializes")
 
-    # Rule: import source exists
+    # Rule: imported terms must exist in source domain's UL
     for sid, spec in specs.items():
         for imp in spec.imports:
             from_domain = strip_prefix(imp.get("from", ""))
             term = imp.get("term", "")
-            if from_domain and from_domain in specs:
-                source = specs[from_domain]
-                if term and term not in source.published_terms and term not in source.term_names:
-                    result.warn("import-source-exists", sid,
-                        f"imports '{term}' from '{from_domain}', but '{from_domain}' does not define or publish it")
-            elif from_domain and from_domain not in specs:
-                result.error("import-source-exists", sid,
+            if not from_domain or not term:
+                continue
+
+            if from_domain not in specs:
+                result.error("import-resolution", sid,
                     f"imports '{term}' from '{from_domain}', but that domain does not exist")
+                continue
+
+            # Search the target domain and its parent chain for the term
+            found_in = None
+            search_chain = [from_domain]
+            parent = from_domain
+            while "/" in parent:
+                parent = parent.rsplit("/", 1)[0]
+                if parent in specs:
+                    search_chain.append(parent)
+
+            for candidate in search_chain:
+                source = specs[candidate]
+                if term in source.term_names:
+                    found_in = candidate
+                    break
+                # Check if any term specializes to this name
+                for t in source.terms:
+                    if t.get("specializes") and t.get("term") == term:
+                        found_in = candidate
+                        break
+                if found_in:
+                    break
+
+            if not found_in:
+                result.error("import-resolution", sid,
+                    f"imported term '{term}' not found in {from_domain} "
+                    f"ubiquitous-language.yaml terms (checked: {', '.join(search_chain)})")
+            elif found_in == from_domain:
+                # Term found — check if it's published
+                source = specs[from_domain]
+                if source.published_terms and term not in source.published_terms:
+                    result.warn("import-resolution", sid,
+                        f"imports '{term}' from '{from_domain}', but it is not in published_language "
+                        f"(importing a private concept)")
 
 
 def check_folder_hierarchy(specs, domains_dir, result):
