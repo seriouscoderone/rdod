@@ -1149,6 +1149,55 @@ def check_escrow_references(specs, result):
                     f"not defined as a UL term or synonym in any domain")
 
 
+def check_contract_type_refs(specs, result):
+    """Parse PascalCase type names from port contracts and verify against types.yaml + UL terms."""
+    import re
+    # PascalCase compound words (at least one lowercase→uppercase transition)
+    PASCAL_ID = re.compile(r'\b[A-Z][a-z]+(?:[A-Z][a-z]+)+\b')
+    BUILTINS = {"Result", "Iterator", "NotFound", "NotApplicable", "AlreadyExists",
+                "NotSupported", "InvalidInput"}
+
+    # Load contract-types whitelist
+    whitelist = set()
+    for sid, spec in specs.items():
+        wl_path = Path(spec.dir).parent / ".contract-types-whitelist"
+        if wl_path.exists():
+            try:
+                for line in wl_path.read_text(encoding="utf-8").splitlines():
+                    line = line.strip()
+                    if line and not line.startswith("#"):
+                        whitelist.add(line)
+            except (IOError, OSError):
+                pass
+            break  # one whitelist per spec root
+
+    # Build global type and term registries
+    all_type_names = set()
+    all_term_names = set()
+    for sid, spec in specs.items():
+        tdata = load_yaml(str(Path(spec.dir) / "types.yaml"))
+        if tdata:
+            for t in tdata.get("types", []):
+                if isinstance(t, dict) and t.get("name"):
+                    all_type_names.add(t["name"])
+        for t in spec.terms:
+            all_term_names.add(t.get("term", ""))
+
+    known = all_type_names | all_term_names | BUILTINS | whitelist
+
+    for sid, spec in specs.items():
+        for port in spec.ports:
+            contract = port.get("contract", "")
+            if not contract:
+                continue
+            identifiers = set(PASCAL_ID.findall(contract))
+            for ident in identifiers:
+                if ident not in known:
+                    result.warn("contract-type-ref", sid,
+                        f"port '{port.get('name', port.get('id', '?'))}' contract references "
+                        f"type '{ident}' — not found in any types.yaml or UL terms")
+
+
 # ── YAML Structure Rules ──────────────────────────────────────────────────────
 
 UL_SECTION_RULES = {
@@ -1386,7 +1435,7 @@ RULE_CATEGORIES = {
     "schema": [check_schema_conformance],
     "completeness": [check_completeness, check_orphans],
     "hierarchy": [check_folder_hierarchy],
-    "cross-refs": [check_type_references, check_typeref_syntax, check_duplicate_errors, check_escrow_references, check_integration_scenarios],
+    "cross-refs": [check_type_references, check_typeref_syntax, check_duplicate_errors, check_escrow_references, check_integration_scenarios, check_contract_type_refs],
     "yaml-structure": [check_section_item_types, check_duplicate_yaml_keys, check_section_ordering, check_term_count],
     "depth-audit": [check_source_material_coverage, check_type_variant_completeness],
 }
