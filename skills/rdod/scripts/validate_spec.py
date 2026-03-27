@@ -232,6 +232,22 @@ def check_ref_resolution(specs, result):
                             result.warn("port-resolution", sid,
                                 f"verification contract port_ref '{port_ref}' not found in {port_domain_id}/ports.yaml")
 
+        # Check externals port:// refs
+        for ext in spec.data.get("externals", []):
+            if not isinstance(ext, dict):
+                continue
+            ext_ref = ext.get("ref", "")
+            if not ext_ref or not str(ext_ref).startswith("port://"):
+                continue
+            port_ref = str(ext_ref)
+            port_domain_id = strip_prefix(port_ref.split("/inbound/")[0].split("/outbound/")[0])
+            if port_domain_id in specs:
+                target_ports = specs[port_domain_id].port_ids
+                if target_ports and port_ref not in target_ports:
+                    ext_name = ext.get("name", ext.get("id", "?"))
+                    result.warn("port-resolution", sid,
+                        f"external '{ext_name}' ref '{port_ref}' not found in {port_domain_id}/ports.yaml")
+
 
 def check_protocol_refs(specs, result):
     """Validate typed references in protocols.yaml steps (types://, errors://, verification://)."""
