@@ -739,6 +739,31 @@ def check_missing_files(specs, result):
                         f"subdomain '{child_id}' directory exists but has no domain.yaml")
 
 
+def _load_vocabulary_whitelist(domains_dir, cli_path=None):
+    """Load vocabulary whitelist from spec root or CLI-specified path."""
+    if cli_path:
+        wl_path = Path(cli_path)
+    else:
+        wl_path = Path(domains_dir).parent / ".vocabulary-whitelist"
+        if not wl_path.exists():
+            wl_path = Path(domains_dir) / ".vocabulary-whitelist"
+    if not wl_path.exists():
+        return set()
+    whitelist = set()
+    try:
+        for line in wl_path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line and not line.startswith("#"):
+                whitelist.add(line)
+    except (IOError, OSError):
+        pass
+    return whitelist
+
+
+# Module-level whitelist, set by validate() before rules run
+_vocabulary_whitelist = set()
+
+
 def check_implementation_vocabulary(specs, result):
     """Flag implementation-specific vocabulary leaking into domain definitions."""
     import re
@@ -755,6 +780,8 @@ def check_implementation_vocabulary(specs, result):
     def is_impl_vocab(text, match):
         """Check if a dotted identifier is actually implementation vocabulary."""
         if match in METHOD_NAMES or match in RFC_PATHS:
+            return False
+        if match in _vocabulary_whitelist:
             return False
         # Skip matches inside [.xxx in impl] bracket convention
         escaped = re.escape(match)
@@ -1353,9 +1380,11 @@ ALL_CATEGORIES = list(RULE_CATEGORIES.keys())
 
 # ── Runner ────────────────────────────────────────────────────────────────────
 
-def validate(domains_dir, strict=False, rules=None):
+def validate(domains_dir, strict=False, rules=None, vocabulary_whitelist_path=None):
     """Run validation checks. Returns (specs, ValidationResult).
     If rules is None, run all. Otherwise run only the specified categories."""
+    global _vocabulary_whitelist
+    _vocabulary_whitelist = _load_vocabulary_whitelist(domains_dir, vocabulary_whitelist_path)
     specs = load_spec(domains_dir)
 
     if not specs:
@@ -1390,6 +1419,8 @@ def main():
         help=f"Comma-separated rule categories to run (default: all). Available: {', '.join(ALL_CATEGORIES)}")
     parser.add_argument("--fix", action="store_true",
         help="Auto-fix structural YAML issues (orphaned items, section ordering)")
+    parser.add_argument("--vocabulary-whitelist",
+        help="Path to vocabulary whitelist file (default: {spec_root}/.vocabulary-whitelist)")
     args = parser.parse_args()
 
     domains_dir = args.domains_dir
@@ -1402,7 +1433,8 @@ def main():
             print(f"Available: {', '.join(ALL_CATEGORIES)}", file=sys.stderr)
             sys.exit(2)
 
-    specs, result = validate(domains_dir, strict=args.strict, rules=rules)
+    specs, result = validate(domains_dir, strict=args.strict, rules=rules,
+                             vocabulary_whitelist_path=args.vocabulary_whitelist)
 
     if args.fix and specs:
         fixed = fix_yaml_structure(specs)
@@ -1411,7 +1443,8 @@ def main():
             for f in fixed:
                 print(f"  {f}", file=sys.stderr)
             # Re-validate after fix
-            specs, result = validate(domains_dir, strict=args.strict, rules=rules)
+            specs, result = validate(domains_dir, strict=args.strict, rules=rules,
+                             vocabulary_whitelist_path=args.vocabulary_whitelist)
     print(f"Validating: {domains_dir} ({len(specs)} domains, {len(rules) if rules else len(ALL_CATEGORIES)} rule categories)", file=sys.stderr)
 
     if args.json:

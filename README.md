@@ -74,7 +74,7 @@ Up to 7 YAML files per domain (last 4 are optional):
 | **`errors.yaml`** | Error taxonomy — every error with cause, recovery, severity, context |
 | **`types.yaml`** | Formal data structures — variants, fields, constraints, encoding rules |
 | **`protocols.yaml`** | Cross-domain orchestration — step sequences, failure paths, compensation |
-| **`verification.yaml`** | Formalized invariants, port contracts, state machines |
+| **`verification.yaml`** | Formalized invariants, port contracts, state machines, validation constraint graphs |
 
 **Spec root (cross-domain):**
 
@@ -84,7 +84,9 @@ Up to 7 YAML files per domain (last 4 are optional):
 
 All refs use URI-style strings: `domain://video-editing`, `port://video-editing/inbound/editing-api`, `kernel://color-lib`.
 
-A JSON schema (`assets/rdod-data.schema.json`) defines the full structure of the generated data, validated via AJV in the browser.
+All refs use consistent URI schemes: `domain://`, `port://`, `types://`, `errors://`, `verification://`, `protocols://`.
+
+Per-file JSON schemas in `assets/schemas/` enforce `additionalProperties: false` — extra fields are flagged by the linter. Requires `jsonschema` pip package (graceful fallback without it).
 
 ## Context Map Viewer
 
@@ -99,13 +101,14 @@ python skills/ddd-spec/scripts/generate_context_map.py rdod/spec/domains
 Requires Python + PyYAML. Opens in any browser — no server needed.
 
 Features:
-- **Hierarchical tree sidebar** built from subdomain ownership (collapsed by default, auto-expands on navigation)
-- **Full-text search** across all domain fields (terms, invariants, descriptions, ports, issues)
+- **Layered sidebar** grouped by architecture layer (Kernels, Domains, Services, Applications)
+- **Full-text sidebar search** across all domain JSON fields
+- **Info panel search** with match highlighting, prev/next navigation, and auto-expand of collapsed sections
 - **Term count badges** showing vocabulary richness per domain
-- **Interactive graph** with color-coded neighbor types (click to navigate)
-- **Complete info panel** showing all template data: published language, imports, language with invariants, neighbors with relationships, ports, events, rules, errors, types, protocols, issues, code locations, implementation guidance, and source material
+- **Interactive graph** with color-coded neighbor types and pattern labels (click to navigate)
+- **Complete info panel** — every field from every spec file rendered: published language, imports, language with formal invariants, neighbors with patterns, ports with repository invariants, events, rules, errors with context, types with constraints/encoding, protocols with trigger/dependencies/failure paths/compensation, verification properties/contracts/state machines/constraint graphs, integration scenarios, issues, code locations, implementation guidance, source material
+- **Hierarchy breadcrumb** (reflects sidebar tree, not navigation history) with separate back-button history
 - **AJV schema validation** on page load (results in browser console)
-- **Breadcrumb navigation** with back button
 
 ## Spec Validator
 
@@ -123,15 +126,15 @@ python skills/ddd-spec/scripts/validate_spec.py rdod/spec/domains
 | `references` | Every domain://, port:// ref resolves |
 | `relationships` | Mirror consistency, adjacents symmetry (respects conformist/kernel patterns) |
 | `cycles` | No cycles in subdomain graph |
-| `terms` | Published language: single owner, import required, no unauthorized redefinition |
+| `terms` | Published language: single owner, import resolution (checks source UL + parent chain), no unauthorized redefinition |
 | `ports` | No duplicate ports across parent-child hierarchy |
-| `verification` | Flags vague invariants, attribute-testing expressions |
+| `verification` | Flags vague invariants, attribute-testing expressions, validation constraint graph cycles |
 | `files` | Missing companion files, empty templates |
-| `vocabulary` | Implementation-specific terms leaking into domain definitions |
-| `schema` | Required fields per file type |
+| `vocabulary` | Implementation-specific terms leaking into domain definitions (supports `.vocabulary-whitelist`) |
+| `schema` | JSON Schema validation with `additionalProperties: false` (8 per-file schemas) |
 | `completeness` | Required fields, stub detection (respects domain intent) |
 | `hierarchy` | Folder nesting matches subdomain declarations |
-| `cross-refs` | Type references, TypeRef syntax, duplicate errors, escrow queue terms |
+| `cross-refs` | Type references, TypeRef→types:// syntax, duplicate sibling errors, escrow queues, integration scenario refs, verification port_ref |
 | `yaml-structure` | Orphaned items, duplicate keys, section ordering, term count cross-check |
 | `depth-audit` | Flags domains with rich source material but thin UL (info severity) |
 
@@ -142,8 +145,11 @@ python validate_spec.py rdod/spec/domains --rules verification,terms
 # Strict mode (warnings = errors)
 python validate_spec.py rdod/spec/domains --strict
 
-# Auto-fix orphaned YAML items and section ordering
+# Auto-fix orphaned YAML items, section ordering, and TypeRef→types:// migration
 python validate_spec.py rdod/spec/domains --fix
+
+# Vocabulary whitelist (skip known spec-level identifiers like .code, .raw)
+python validate_spec.py rdod/spec/domains --vocabulary-whitelist .vocabulary-whitelist
 
 # CI-friendly JSON output
 python validate_spec.py rdod/spec/domains --json
@@ -180,8 +186,11 @@ Domain invariants are the natural inputs to formal verification. The toolkit bri
 | Term invariants | Property-Based Testing (Hypothesis, fast-check) |
 | Port contracts (pre/postconditions) | SMT Solvers (Z3, CrossHair) |
 | Ordered behavior / state machines | Symbolic Execution (Dafny, KLEE) |
+| Validation pipelines | Constraint graphs (topological sort of depends_on DAGs) |
 
-Add `verification.yaml` to formalize invariants as machine-executable expressions. An AI implementing from the spec gets both the blueprint AND the verification criteria.
+Add `verification.yaml` to formalize invariants as machine-executable expressions. Use `validation_constraints:` to express validation pipelines as declarative constraint DAGs — AIs can derive evaluation order, identify parallelizable branches, and compose constraints across domains.
+
+An AI implementing from the spec gets both the blueprint AND the verification criteria.
 
 See `references/verification.md` in either skill for the full methodology.
 
