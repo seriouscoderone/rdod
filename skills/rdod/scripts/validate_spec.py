@@ -1171,19 +1171,25 @@ def check_contract_type_refs(specs, result):
                 pass
             break  # one whitelist per spec root
 
-    # Build global type and term registries
+    # Build global type, term, and error name registries
     all_type_names = set()
     all_term_names = set()
+    all_error_names = set()
     for sid, spec in specs.items():
         tdata = load_yaml(str(Path(spec.dir) / "types.yaml"))
         if tdata:
             for t in tdata.get("types", []):
                 if isinstance(t, dict) and t.get("name"):
                     all_type_names.add(t["name"])
+        edata = load_yaml(str(Path(spec.dir) / "errors.yaml"))
+        if edata:
+            for e in edata.get("errors", []):
+                if isinstance(e, dict) and e.get("name"):
+                    all_error_names.add(e["name"])
         for t in spec.terms:
             all_term_names.add(t.get("term", ""))
 
-    known = all_type_names | all_term_names | BUILTINS | whitelist
+    known = all_type_names | all_term_names | all_error_names | BUILTINS | whitelist
 
     for sid, spec in specs.items():
         for port in spec.ports:
