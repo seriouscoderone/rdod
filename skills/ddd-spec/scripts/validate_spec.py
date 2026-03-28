@@ -1305,39 +1305,38 @@ def check_uri_resolution(specs, result):
 
 
 def check_scheme_consistency(specs, result):
-    """Flag domains referenced as both kernel:// and domain:// across the spec."""
-    # Collect all scheme→domain references with source files
-    kernel_refs = defaultdict(set)  # {domain_id: {source_domain_ids}}
-    domain_refs = defaultdict(set)
+    """Validate kernel:// only appears in kernels: sections. domain:// is valid everywhere."""
+    # kernel:// is valid in: kernels[].ref, kernels[].source
+    # kernel:// is invalid in: adjacents, from, specializes, domain_clients, subdomains
+    KERNEL_VALID_CONTEXTS = {"kernels"}
 
     for sid, spec in specs.items():
-        all_uris = _collect_all_uris(spec.data)
-        if spec.lang_data:
-            all_uris.extend(_collect_all_uris(spec.lang_data))
-        if spec.ports_data:
-            all_uris.extend(_collect_all_uris(spec.ports_data))
-        for fname in ["errors.yaml", "types.yaml", "protocols.yaml", "verification.yaml"]:
-            fdata = load_yaml(str(Path(spec.dir) / fname))
-            if fdata:
-                all_uris.extend(_collect_all_uris(fdata))
+        # Check domain.yaml sections for misplaced kernel:// refs
+        for section in ["domain_clients", "subdomains", "adjacents"]:
+            for item in spec.data.get(section, []):
+                ref = ""
+                if isinstance(item, str):
+                    ref = item
+                elif isinstance(item, dict):
+                    ref = item.get("ref", "")
+                if str(ref).startswith("kernel://"):
+                    result.warn("scheme-consistency", sid,
+                        f"kernel:// used in {section}: '{ref}' — "
+                        f"kernel:// belongs in kernels: section, use domain:// here")
 
-        for uri, _ in all_uris:
-            if "://" not in uri:
-                continue
-            scheme = uri.split("://")[0]
-            target = strip_prefix(uri).split("#")[0].split("/inbound/")[0].split("/outbound/")[0]
-            if scheme == "kernel":
-                kernel_refs[target].add(sid)
-            elif scheme == "domain":
-                domain_refs[target].add(sid)
+        # Check UL imports for misplaced kernel:// in from:
+        for imp in spec.imports:
+            from_ref = imp.get("from", "")
+            if str(from_ref).startswith("kernel://"):
+                result.warn("scheme-consistency", sid,
+                    f"kernel:// used in imports from: '{from_ref}' — use domain:// for imports")
 
-    for target in kernel_refs:
-        if target in domain_refs:
-            k_count = len(kernel_refs[target])
-            d_count = len(domain_refs[target])
-            result.warn("scheme-consistency", target,
-                f"referenced as both kernel:// ({k_count} domains) and domain:// "
-                f"({d_count} domains) — should be one or the other")
+        # Check UL terms for misplaced kernel:// in specializes:
+        for term in spec.terms:
+            spec_ref = term.get("specializes", "")
+            if str(spec_ref).startswith("kernel://"):
+                result.warn("scheme-consistency", sid,
+                    f"kernel:// used in specializes: '{spec_ref}' — use domain:// for specializations")
 
 
 # ── YAML Structure Rules ──────────────────────────────────────────────────────
