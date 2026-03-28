@@ -45,21 +45,46 @@ def strip_prefix(ref):
     return ref
 
 
+KNOWN_URI_SCHEMES = {"domain", "kernel", "port", "types", "errors", "verification", "protocols", "external"}
+
+
 def parse_typed_ref(ref):
-    """Parse typed refs like 'types://keri/identity#InceptionEvent' → (scheme, domain_path, item_name).
-    Returns (None, None, None) if not a typed ref."""
+    """Parse RDOD URIs per the formal grammar in uri-schemes.md.
+
+    Returns (scheme, domain_path, fragment) where:
+      - scheme: one of KNOWN_URI_SCHEMES, or None if not a recognized URI
+      - domain_path: the domain identifier (or full path for port://)
+      - fragment: the #fragment (type name, error name, etc.), or None
+
+    Special case for port://: domain_path is extracted by stripping the
+    last two segments (direction/port_name) from the path.
+    """
     if not ref or "://" not in str(ref):
         return None, None, None
     ref = str(ref)
     scheme, rest = ref.split("://", 1)
+    if scheme not in KNOWN_URI_SCHEMES:
+        return None, None, None
+
     if "#" in rest:
-        domain_path, item_name = rest.split("#", 1)
+        domain_path, fragment = rest.split("#", 1)
         # Strip variant suffix: "InceptionEvent/non-delegated" → "InceptionEvent"
-        if "/" in item_name:
-            item_name = item_name.split("/")[0]
+        if "/" in fragment:
+            fragment = fragment.split("/")[0]
     else:
-        domain_path, item_name = rest, None
-    return scheme, domain_path, item_name
+        domain_path, fragment = rest, None
+
+    # For port://, extract domain_path by stripping /direction/name
+    if scheme == "port":
+        parts = domain_path.split("/")
+        if len(parts) >= 3:
+            # port://domain/path/inbound/port-name → domain_path = domain/path
+            for i, part in enumerate(parts):
+                if part in ("inbound", "outbound") and i > 0:
+                    domain_path = "/".join(parts[:i])
+                    break
+
+    return scheme, domain_path, fragment
 
 
 def get_refs(items, key="ref"):
@@ -1224,15 +1249,12 @@ def check_contract_type_refs(specs, result):
 
 # ── URI Resolution Rules ──────────────────────────────────────────────────────
 
-URI_SCHEMES = {"domain", "kernel", "port", "types", "errors", "verification", "protocols"}
-
-
 def _collect_all_uris(data, path=""):
     """Recursively walk YAML data and collect all URI strings with their location."""
     uris = []
     if isinstance(data, str) and "://" in data:
         scheme = data.split("://")[0]
-        if scheme in URI_SCHEMES:
+        if scheme in KNOWN_URI_SCHEMES:
             uris.append((data, path))
     elif isinstance(data, list):
         for i, item in enumerate(data):
@@ -1243,65 +1265,115 @@ def _collect_all_uris(data, path=""):
     return uris
 
 
+def _collect_domain_uris(spec):
+    """Collect all URIs from every YAML file in a domain."""
+    uris = _collect_all_uris(spec.data)
+    if spec.lang_data:
+        uris.extend(_collect_all_uris(spec.lang_data))
+    if spec.ports_data:
+        uris.extend(_collect_all_uris(spec.ports_data))
+    for fname in ["errors.yaml", "types.yaml", "protocols.yaml", "verification.yaml"]:
+        fdata = load_yaml(str(Path(spec.dir) / fname))
+        if fdata:
+            uris.extend(_collect_all_uris(fdata))
+    return uris
+
+
 def check_uri_resolution(specs, result):
-    """Validate all URI scheme targets across all spec files."""
+    """Validate all URI scheme targets per the formal resolution table in uri-schemes.md."""
     # Build resolution registries
-    type_registry = {}   # {domain_id: {type_names}}
-    error_registry = {}  # {domain_id: {error_names}}
+    type_registry = {}     # {domain_id: {type_names}}
+    error_registry = {}    # {domain_id: {error_names}}
+    protocol_registry = {} # {domain_id: {protocol_names}}
+    verif_registry = {}    # {domain_id: {term/constraint names}}
+
     for sid, spec in specs.items():
-        tdata = load_yaml(str(Path(spec.dir) / "types.yaml"))
+        d = Path(spec.dir)
+        tdata = load_yaml(str(d / "types.yaml"))
         type_registry[sid] = {t.get("name", "") for t in (tdata or {}).get("types", [])
                               if isinstance(t, dict) and t.get("name")}
-        edata = load_yaml(str(Path(spec.dir) / "errors.yaml"))
+        edata = load_yaml(str(d / "errors.yaml"))
         error_registry[sid] = {e.get("name", "") for e in (edata or {}).get("errors", [])
                                if isinstance(e, dict) and e.get("name")}
+        pdata = load_yaml(str(d / "protocols.yaml"))
+        protocol_registry[sid] = {p.get("name", "") for p in (pdata or {}).get("protocols", [])
+                                  if isinstance(p, dict) and p.get("name")}
+        vdata = load_yaml(str(d / "verification.yaml"))
+        vnames = set()
+        if vdata:
+            for p in vdata.get("properties", []):
+                if isinstance(p, dict):
+                    vnames.add(p.get("term", ""))
+                    vnames.add(p.get("name", ""))
+            for c in vdata.get("validation_constraints", []):
+                if isinstance(c, dict):
+                    vnames.add(c.get("id", ""))
+        vnames.discard("")
+        verif_registry[sid] = vnames
 
     for sid, spec in specs.items():
-        # Collect URIs from all YAML files for this domain
-        all_uris = _collect_all_uris(spec.data)
-        if spec.lang_data:
-            all_uris.extend(_collect_all_uris(spec.lang_data))
-        if spec.ports_data:
-            all_uris.extend(_collect_all_uris(spec.ports_data))
-        for fname in ["errors.yaml", "types.yaml", "protocols.yaml", "verification.yaml"]:
-            fdata = load_yaml(str(Path(spec.dir) / fname))
-            if fdata:
-                all_uris.extend(_collect_all_uris(fdata))
-
-        for uri, location in all_uris:
-            scheme, domain_path, item_name = parse_typed_ref(uri)
+        for uri, location in _collect_domain_uris(spec):
+            scheme, domain_path, fragment = parse_typed_ref(uri)
             if not scheme or not domain_path:
                 continue
 
+            # external:// — abstract, no resolution
+            if scheme == "external":
+                continue
+
+            # Step 1: domain directory must exist (all schemes except external)
+            if domain_path not in specs:
+                result.error("uri-resolution", sid,
+                    f"{scheme}://{domain_path} at {location} — domain not found")
+                continue
+
+            target_dir = Path(specs[domain_path].dir)
+
+            # Step 2+3: file and element resolution per scheme
             if scheme in ("domain", "kernel"):
-                if domain_path not in specs:
+                pass  # directory check above is sufficient
+
+            elif scheme == "port":
+                if not (target_dir / "ports.yaml").exists():
                     result.error("uri-resolution", sid,
-                        f"{scheme}://{domain_path} at {location} — domain directory not found")
+                        f"{uri} at {location} — ports.yaml not found in {domain_path}/")
+                else:
+                    target_ports = specs[domain_path].port_ids
+                    if target_ports and uri not in target_ports:
+                        result.warn("uri-resolution", sid,
+                            f"{uri} at {location} — port not found in {domain_path}/ports.yaml")
 
-            elif scheme == "types" and item_name:
-                if domain_path not in specs:
+            elif scheme == "types":
+                if not (target_dir / "types.yaml").exists():
                     result.warn("uri-resolution", sid,
-                        f"types://{domain_path}#{item_name} at {location} — domain not found")
-                elif item_name not in type_registry.get(domain_path, set()):
+                        f"{uri} at {location} — types.yaml not found in {domain_path}/")
+                elif fragment and fragment not in type_registry.get(domain_path, set()):
                     result.warn("uri-resolution", sid,
-                        f"types://{domain_path}#{item_name} at {location} — type not in {domain_path}/types.yaml")
+                        f"{uri} at {location} — type '{fragment}' not in {domain_path}/types.yaml")
 
-            elif scheme == "errors" and item_name:
-                if domain_path not in specs:
+            elif scheme == "errors":
+                if not (target_dir / "errors.yaml").exists():
                     result.warn("uri-resolution", sid,
-                        f"errors://{domain_path}#{item_name} at {location} — domain not found")
-                elif item_name not in error_registry.get(domain_path, set()):
+                        f"{uri} at {location} — errors.yaml not found in {domain_path}/")
+                elif fragment and fragment not in error_registry.get(domain_path, set()):
                     result.warn("uri-resolution", sid,
-                        f"errors://{domain_path}#{item_name} at {location} — error not in {domain_path}/errors.yaml")
+                        f"{uri} at {location} — error '{fragment}' not in {domain_path}/errors.yaml")
 
             elif scheme == "verification":
-                target = domain_path.split("#")[0]
-                if target not in specs:
+                if not (target_dir / "verification.yaml").exists():
                     result.warn("uri-resolution", sid,
-                        f"verification://{domain_path} at {location} — domain not found")
-                elif not Path(specs[target].dir, "verification.yaml").exists():
+                        f"{uri} at {location} — verification.yaml not found in {domain_path}/")
+                elif fragment and fragment not in verif_registry.get(domain_path, set()):
                     result.warn("uri-resolution", sid,
-                        f"verification://{domain_path} at {location} — verification.yaml not found")
+                        f"{uri} at {location} — '{fragment}' not in {domain_path}/verification.yaml")
+
+            elif scheme == "protocols":
+                if not (target_dir / "protocols.yaml").exists():
+                    result.warn("uri-resolution", sid,
+                        f"{uri} at {location} — protocols.yaml not found in {domain_path}/")
+                elif fragment and fragment not in protocol_registry.get(domain_path, set()):
+                    result.warn("uri-resolution", sid,
+                        f"{uri} at {location} — protocol '{fragment}' not in {domain_path}/protocols.yaml")
 
 
 def check_scheme_consistency(specs, result):

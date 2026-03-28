@@ -117,7 +117,7 @@ Both directories use the same domain.yaml format. Running both skills on the sam
 
 ## Templates
 
-See `references/templates.md` for all YAML template schemas with full field descriptions. Blank templates in `assets/`.
+See `references/templates.md` for all YAML template schemas. See `references/uri-schemes.md` for the formal grammar and resolution rules of all 8 URI reference schemes. Blank templates in `assets/`.
 
 **Per domain (required):**
 - `domain.yaml` — identity, published language, neighbors, issues, code locations
