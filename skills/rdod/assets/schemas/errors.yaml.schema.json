@@ -18,7 +18,7 @@
           "recovery": { "type": "string", "enum": ["retry", "escrow", "escalate", "abort", "ignore"] },
           "severity": { "type": "string", "enum": ["fatal", "recoverable", "transient"] },
           "related_port": { "type": "string" },
-          "escrow_queue": { "type": "string" },
+          "recovery_target": { "type": "string" },
           "context": {
             "type": "array",
             "items": {

@@ -6,7 +6,8 @@ errors: []
 # - name: ""                # e.g., "OutOfOrderError"
 #   description: ""         # human-readable: when does this error occur?
 #   cause: ""               # the specific condition that triggers it
-#   recovery: ""            # retry | escrow | escalate | abort
+#   recovery: ""            # retry | escrow | escalate | abort | ignore
+#   recovery_target: ""     # where to route on recovery (e.g., queue name, handler)
 #   severity: ""            # fatal | recoverable | transient
 #   context:                # fields included with this error for the caller
 #     - field: ""

@@ -1125,8 +1125,8 @@ def check_integration_scenarios(specs, domains_dir, result):
                             f"failure state references unknown domain '{dref}'")
 
 
-def check_escrow_references(specs, result):
-    """Cross-reference escrow_queue fields against UL terms."""
+def check_recovery_target_refs(specs, result):
+    """Cross-reference recovery_target fields against UL terms."""
     all_terms = set()
     for sid, spec in specs.items():
         for t in spec.terms:
@@ -1142,10 +1142,10 @@ def check_escrow_references(specs, result):
         for err in edata.get("errors", []):
             if not isinstance(err, dict):
                 continue
-            queue = err.get("escrow_queue", "")
-            if queue and queue not in all_terms:
-                result.warn("escrow-ref", sid,
-                    f"error '{err.get('name', '?')}' references escrow queue '{queue}' "
+            target = err.get("recovery_target", "") or err.get("escrow_queue", "")
+            if target and target not in all_terms:
+                result.warn("recovery-target-ref", sid,
+                    f"error '{err.get('name', '?')}' recovery_target '{target}' "
                     f"not defined as a UL term or synonym in any domain")
 
 
@@ -1576,7 +1576,7 @@ RULE_CATEGORIES = {
     "schema": [check_schema_conformance],
     "completeness": [check_completeness, check_orphans],
     "hierarchy": [check_folder_hierarchy],
-    "cross-refs": [check_type_references, check_typeref_syntax, check_duplicate_errors, check_escrow_references, check_integration_scenarios, check_contract_type_refs],
+    "cross-refs": [check_type_references, check_typeref_syntax, check_duplicate_errors, check_recovery_target_refs, check_integration_scenarios, check_contract_type_refs],
     "yaml-structure": [check_section_item_types, check_duplicate_yaml_keys, check_section_ordering, check_term_count],
     "depth-audit": [check_source_material_coverage, check_type_variant_completeness],
     "uri-resolution": [check_uri_resolution, check_scheme_consistency],
