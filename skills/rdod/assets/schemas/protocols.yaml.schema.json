@@ -17,6 +17,19 @@
           "trigger": { "type": "string" },
           "timeout": { "type": "string" },
           "compensation": { "type": "string" },
+          "invariants": { "type": "array", "items": { "type": "string" } },
+          "failure_paths": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "step": { "type": ["integer", "string"] },
+                "failure": { "type": "string" },
+                "handling": { "type": "string" }
+              }
+            }
+          },
           "participants": {
             "type": "array",
             "items": {
@@ -58,6 +71,8 @@
                     ]
                   }
                 },
+                "notes": { "type": "string" },
+                "sub_steps": { "type": "array" },
                 "on_failure": {
                   "type": "array",
                   "items": {

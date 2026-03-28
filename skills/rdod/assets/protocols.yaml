@@ -32,10 +32,17 @@ protocols: []
 #           ref: ""         # errors://domain-id#ErrorType (optional)
 #           action: ""      # escrow | retry | abort | compensate
 #           compensation: "" # what to undo if needed
+#       notes: ""           # implementation guidance, conditional logic
+#       sub_steps: []       # conditional sub-operations within this step
 #     - seq: 2
 #       domain: ""
 #       action: ""
 #       depends_on: [1]     # must complete after step 1
+#   invariants: []          # guarantees that hold across the entire sequence
+#   failure_paths: []       # what happens when each step fails
+#   # - step: 1
+#   #   failure: ""
+#   #   handling: ""
 #   timeout: ""             # duration after which the protocol fails
 #   compensation: ""        # global rollback if protocol fails after partial completion
 #   terminal_states:
