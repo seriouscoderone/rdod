@@ -1222,6 +1222,124 @@ def check_contract_type_refs(specs, result):
                 f"to {sid}/types.yaml for discoverability")
 
 
+# ── URI Resolution Rules ──────────────────────────────────────────────────────
+
+URI_SCHEMES = {"domain", "kernel", "port", "types", "errors", "verification", "protocols"}
+
+
+def _collect_all_uris(data, path=""):
+    """Recursively walk YAML data and collect all URI strings with their location."""
+    uris = []
+    if isinstance(data, str) and "://" in data:
+        scheme = data.split("://")[0]
+        if scheme in URI_SCHEMES:
+            uris.append((data, path))
+    elif isinstance(data, list):
+        for i, item in enumerate(data):
+            uris.extend(_collect_all_uris(item, f"{path}[{i}]"))
+    elif isinstance(data, dict):
+        for key, value in data.items():
+            uris.extend(_collect_all_uris(value, f"{path}.{key}" if path else key))
+    return uris
+
+
+def check_uri_resolution(specs, result):
+    """Validate all URI scheme targets across all spec files."""
+    # Build resolution registries
+    type_registry = {}   # {domain_id: {type_names}}
+    error_registry = {}  # {domain_id: {error_names}}
+    for sid, spec in specs.items():
+        tdata = load_yaml(str(Path(spec.dir) / "types.yaml"))
+        type_registry[sid] = {t.get("name", "") for t in (tdata or {}).get("types", [])
+                              if isinstance(t, dict) and t.get("name")}
+        edata = load_yaml(str(Path(spec.dir) / "errors.yaml"))
+        error_registry[sid] = {e.get("name", "") for e in (edata or {}).get("errors", [])
+                               if isinstance(e, dict) and e.get("name")}
+
+    for sid, spec in specs.items():
+        # Collect URIs from all YAML files for this domain
+        all_uris = _collect_all_uris(spec.data)
+        if spec.lang_data:
+            all_uris.extend(_collect_all_uris(spec.lang_data))
+        if spec.ports_data:
+            all_uris.extend(_collect_all_uris(spec.ports_data))
+        for fname in ["errors.yaml", "types.yaml", "protocols.yaml", "verification.yaml"]:
+            fdata = load_yaml(str(Path(spec.dir) / fname))
+            if fdata:
+                all_uris.extend(_collect_all_uris(fdata))
+
+        for uri, location in all_uris:
+            scheme, domain_path, item_name = parse_typed_ref(uri)
+            if not scheme or not domain_path:
+                continue
+
+            if scheme in ("domain", "kernel"):
+                if domain_path not in specs:
+                    result.error("uri-resolution", sid,
+                        f"{scheme}://{domain_path} at {location} — domain directory not found")
+
+            elif scheme == "types" and item_name:
+                if domain_path not in specs:
+                    result.warn("uri-resolution", sid,
+                        f"types://{domain_path}#{item_name} at {location} — domain not found")
+                elif item_name not in type_registry.get(domain_path, set()):
+                    result.warn("uri-resolution", sid,
+                        f"types://{domain_path}#{item_name} at {location} — type not in {domain_path}/types.yaml")
+
+            elif scheme == "errors" and item_name:
+                if domain_path not in specs:
+                    result.warn("uri-resolution", sid,
+                        f"errors://{domain_path}#{item_name} at {location} — domain not found")
+                elif item_name not in error_registry.get(domain_path, set()):
+                    result.warn("uri-resolution", sid,
+                        f"errors://{domain_path}#{item_name} at {location} — error not in {domain_path}/errors.yaml")
+
+            elif scheme == "verification":
+                target = domain_path.split("#")[0]
+                if target not in specs:
+                    result.warn("uri-resolution", sid,
+                        f"verification://{domain_path} at {location} — domain not found")
+                elif not Path(specs[target].dir, "verification.yaml").exists():
+                    result.warn("uri-resolution", sid,
+                        f"verification://{domain_path} at {location} — verification.yaml not found")
+
+
+def check_scheme_consistency(specs, result):
+    """Flag domains referenced as both kernel:// and domain:// across the spec."""
+    # Collect all scheme→domain references with source files
+    kernel_refs = defaultdict(set)  # {domain_id: {source_domain_ids}}
+    domain_refs = defaultdict(set)
+
+    for sid, spec in specs.items():
+        all_uris = _collect_all_uris(spec.data)
+        if spec.lang_data:
+            all_uris.extend(_collect_all_uris(spec.lang_data))
+        if spec.ports_data:
+            all_uris.extend(_collect_all_uris(spec.ports_data))
+        for fname in ["errors.yaml", "types.yaml", "protocols.yaml", "verification.yaml"]:
+            fdata = load_yaml(str(Path(spec.dir) / fname))
+            if fdata:
+                all_uris.extend(_collect_all_uris(fdata))
+
+        for uri, _ in all_uris:
+            if "://" not in uri:
+                continue
+            scheme = uri.split("://")[0]
+            target = strip_prefix(uri).split("#")[0].split("/inbound/")[0].split("/outbound/")[0]
+            if scheme == "kernel":
+                kernel_refs[target].add(sid)
+            elif scheme == "domain":
+                domain_refs[target].add(sid)
+
+    for target in kernel_refs:
+        if target in domain_refs:
+            k_count = len(kernel_refs[target])
+            d_count = len(domain_refs[target])
+            result.warn("scheme-consistency", target,
+                f"referenced as both kernel:// ({k_count} domains) and domain:// "
+                f"({d_count} domains) — should be one or the other")
+
+
 # ── YAML Structure Rules ──────────────────────────────────────────────────────
 
 UL_SECTION_RULES = {
@@ -1462,6 +1580,7 @@ RULE_CATEGORIES = {
     "cross-refs": [check_type_references, check_typeref_syntax, check_duplicate_errors, check_escrow_references, check_integration_scenarios, check_contract_type_refs],
     "yaml-structure": [check_section_item_types, check_duplicate_yaml_keys, check_section_ordering, check_term_count],
     "depth-audit": [check_source_material_coverage, check_type_variant_completeness],
+    "uri-resolution": [check_uri_resolution, check_scheme_consistency],
 }
 
 ALL_CATEGORIES = list(RULE_CATEGORIES.keys())

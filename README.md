@@ -119,7 +119,7 @@ python skills/rdod/scripts/validate_spec.py rdod/analysis/domains
 python skills/ddd-spec/scripts/validate_spec.py rdod/spec/domains
 ```
 
-15 rule categories:
+16 rule categories:
 
 | Category | What it checks |
 |---|---|
@@ -137,6 +137,7 @@ python skills/ddd-spec/scripts/validate_spec.py rdod/spec/domains
 | `cross-refs` | Type references, TypeRef→types:// syntax, duplicate sibling errors, escrow queues, integration scenario refs, verification port_ref |
 | `yaml-structure` | Orphaned items, duplicate keys, section ordering, term count cross-check |
 | `depth-audit` | Flags domains with rich source material but thin UL (info severity) |
+| `uri-resolution` | Validates all URI schemes (domain://, kernel://, types://, errors://, verification://), phantom domains, scheme consistency |
 
 ```bash
 # Run specific categories
