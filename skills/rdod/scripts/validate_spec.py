@@ -1746,6 +1746,71 @@ def check_type_variant_completeness(specs, result):
                             f"{len(enum_values)} enum values — verify against source material for completeness")
 
 
+# ── Parent Reference Detection ────────────────────────────────────────────────
+
+# Files where type URIs represent structural dependencies (child→parent = violation)
+_PARENT_REF_IN_SCOPE_FILES = {"types.yaml", "ports.yaml", "errors.yaml", "protocols.yaml", "verification.yaml"}
+# Schemes that encode domain paths (kernel:// and external:// are exempt)
+_PARENT_REF_SCHEMES = {"types", "errors", "port"}
+
+
+def _is_strict_ancestor(ancestor_path, descendant_path):
+    """True if ancestor_path is a strict path-prefix of descendant_path.
+
+    'signify-client' is a strict ancestor of 'signify-client/resources'.
+    'signify-client' is NOT an ancestor of 'signify-client-v2' (partial segment match).
+    """
+    if not ancestor_path or not descendant_path:
+        return False
+    if ancestor_path == descendant_path:
+        return False
+    return descendant_path.startswith(ancestor_path + "/")
+
+
+def check_parent_refs(specs, result):
+    """Detect child domains referencing types/errors/ports owned by ancestor domains.
+
+    A domain at path B must not reference types://A#T where A is a strict
+    path-prefix ancestor of B. This is a layering violation — subdomains
+    should be independently implementable without reaching up to parent types.
+
+    Scope: types.yaml, ports.yaml, errors.yaml, protocols.yaml, verification.yaml.
+    Exempt: ubiquitous-language.yaml (specializes: uses domain:// for conceptual lineage).
+    Exempt: kernel:// and external:// schemes (no domain path to check).
+    """
+    for sid, spec in specs.items():
+        # Collect URIs from in-scope files only (not domain.yaml, not UL)
+        uris_to_check = []
+
+        # ports.yaml
+        if spec.ports_data:
+            uris_to_check.extend(
+                (uri, f"ports.yaml:{loc}") for uri, loc in _collect_all_uris(spec.ports_data))
+
+        # Other companion files
+        for fname in ("types.yaml", "errors.yaml", "protocols.yaml", "verification.yaml"):
+            fpath = Path(spec.dir) / fname
+            if fpath.exists():
+                fdata = load_yaml(str(fpath))
+                if fdata:
+                    uris_to_check.extend(
+                        (uri, f"{fname}:{loc}") for uri, loc in _collect_all_uris(fdata))
+
+        # Check each URI
+        for uri, location in uris_to_check:
+            scheme, domain_path, fragment = parse_typed_ref(uri)
+            if not scheme or scheme not in _PARENT_REF_SCHEMES:
+                continue
+            if not domain_path:
+                continue
+
+            if _is_strict_ancestor(domain_path, sid):
+                result.error("parent-ref", sid,
+                    f"references {uri} at {location} — child domains must not reference "
+                    f"types owned by ancestor domain '{domain_path}'; "
+                    f"move the definition to this subdomain or a sibling, not the parent")
+
+
 # ── Rule Registry ─────────────────────────────────────────────────────────────
 
 RULE_CATEGORIES = {
@@ -1759,7 +1824,7 @@ RULE_CATEGORIES = {
     "vocabulary": [check_implementation_vocabulary],
     "schema": [check_schema_conformance],
     "completeness": [check_completeness, check_tier, check_orphans],
-    "hierarchy": [check_folder_hierarchy],
+    "hierarchy": [check_folder_hierarchy, check_parent_refs],
     "cross-refs": [check_type_references, check_typeref_syntax, check_duplicate_errors, check_recovery_target_refs, check_error_port_mirror, check_integration_scenarios, check_contract_type_refs],
     "yaml-structure": [check_section_item_types, check_duplicate_yaml_keys, check_section_ordering, check_term_count],
     "depth-audit": [check_source_material_coverage, check_type_variant_completeness],
