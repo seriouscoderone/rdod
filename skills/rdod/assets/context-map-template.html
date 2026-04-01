@@ -511,21 +511,12 @@ function renderSidebar(filter) {
   initCollapsed();
   const { roots, parentToChildren } = buildTree();
 
-  // Build kernel set: domains referenced via kernel:// by any domain
-  const kernelIds = new Set();
-  allDomains().forEach(d => {
-    getList(d, 'kernels').forEach(ref => kernelIds.add(stripPrefix(ref)));
-  });
-
-  // Classify root domains into architecture layers
+  // Classify root domains into architecture layers via explicit tier field
   function getLayer(id) {
-    if (kernelIds.has(id)) return 'kernel';
     const d = getDomain(id);
     if (!d) return 'domain';
-    const st = (d.implementation_guidance && d.implementation_guidance.suggested_type || '').toLowerCase();
-    const intent = (d.intent || '').toLowerCase();
-    if (st === 'service' || intent === 'orchestrator' || id.endsWith('-service')) return 'service';
-    if (st === 'app' || st === 'application' || intent === 'facade') return 'application';
+    const tier = (d.tier || '').toLowerCase();
+    if (['kernel', 'domain', 'service', 'application'].includes(tier)) return tier;
     return 'domain';
   }
 
@@ -1133,9 +1124,15 @@ function renderInfo(domain) {
     ports.forEach(p => {
       const item = document.createElement('div');
       item.className = 'port-item';
-      let html = `<div class="port-header"><span class="port-dir ${p.type || ''}">${esc(p.type || '')}</span><span class="port-name">${esc(p.name)}</span></div>`;
-      if (p.contract) html += `<div class="port-contract">${esc(p.contract)}</div>`;
-      if (p.protocol) html += `<div class="port-protocol">protocol: ${esc(p.protocol)}</div>`;
+      let html = `<div class="port-header"><span class="port-dir ${p.type || ''}">${esc(p.type || '')}</span><span class="port-name">${esc(p.name)}</span>`;
+      if (p.semantics) html += `<span style="margin-left:6px;font-size:9px;padding:1px 5px;border-radius:3px;background:#1a3d1a;color:#5cb85c">${esc(p.semantics)}</span>`;
+      if (p.idempotent) html += `<span style="margin-left:4px;font-size:9px;padding:1px 5px;border-radius:3px;background:#3d3a1a;color:#c5b85c">idempotent</span>`;
+      html += `</div>`;
+      if (p.contract && typeof p.contract === 'object') {
+        if (p.contract.input) html += `<div class="port-contract" style="color:#888;font-size:11px">in: ${esc(p.contract.input)}</div>`;
+        if (p.contract.output) html += `<div class="port-contract" style="color:#888;font-size:11px">out: ${esc(p.contract.output)}</div>`;
+        if (p.contract.errors && p.contract.errors.length) html += `<div class="port-contract" style="color:#c44;font-size:11px">err: ${p.contract.errors.map(e => esc(e)).join(', ')}</div>`;
+      }
       if (p.refs && p.refs.length) html += `<div class="port-refs">refs: ${p.refs.map(r => esc(r)).join(', ')}</div>`;
       item.innerHTML = html;
       portsWrap.appendChild(item);

@@ -25,13 +25,13 @@ Before touching any domain, enumerate **everything** in the repo. This becomes t
 3. **Write the master checklist.** List every distinct internal module/package with its provisional classification from the dependency graph. This is the authoritative list. Use `assets/checklist.yaml` as the template, or a markdown checklist — either works. Example:
    ```
    MASTER CHECKLIST
-   [ ] social-media-platform    (client — no dependents)
-   [ ] video-editing            (core — most dependents)
-   [ ] format-handling          (subdomain candidate)
-   [ ] rendering-engine         (subdomain candidate)
-   [ ] color-library            (kernel candidate — external)
-   [ ] shared-types             (subdomain candidate)
-   [ ] legacy-importer          (isolated — not in dep graph)
+   [ ] social-media-platform    (client — no dependents)          tier: application
+   [ ] video-editing            (core — most dependents)          tier: domain
+   [ ] format-handling          (subdomain candidate)              tier: domain
+   [ ] rendering-engine         (subdomain candidate)              tier: domain
+   [ ] color-library            (kernel candidate — external)      tier: kernel
+   [ ] shared-types             (subdomain candidate)              tier: domain
+   [ ] legacy-importer          (isolated — not in dep graph)      tier: domain
    ```
    Include modules that appear isolated (not yet connected in the dep graph) — these are the ones a pure traversal would miss. The classification column is a guess at this stage; update it as the crawl refines your understanding.
 
@@ -194,6 +194,13 @@ For each:
 
 Fill `externals` in `domain.yaml`. For each port (inbound and outbound), fill `ports.yaml`.
 
+When filling ports, use structured contracts with typed references:
+- `contract.input`: `types://<domain-id>#<InputType>` or `kernel://<id>#<Type>` for kernel-provided types
+- `contract.output`: `types://<domain-id>#<OutputType>`
+- `contract.errors`: `errors://<domain-id>#<ErrorType>` referencing errors.yaml entries
+- Set `semantics` to `command` (mutates state), `query` (reads), or `event` (notification)
+- Set `idempotent` based on whether repeated calls with the same input produce the same result
+
 **Domain logic vs. implementation:** The domain owns the *interface* (e.g., "a repository for storing clips"). The concrete implementation (e.g., "PostgreSQL with table `clips`") lives outside the domain and is noted in `implementation_notes` on the external entry. When filling externals, name the abstraction the domain needs, not the technology behind it. The technology is evidence for the implementation notes, not the domain model.
 
 **Issue cues:**
@@ -227,6 +234,15 @@ If this domain is an adapter layer, API facade, or thin delegation point with no
 - **facade** — simplified interface over complex subdomains
 
 This tells the linter to adjust expectations (e.g., no UL terms warning for adapters).
+
+Also set `tier` to classify this domain's architectural position:
+
+- **kernel** — adopted primitive library whose types appear unchanged in other domains' public surfaces
+- **domain** — core business logic, the default for most modules
+- **service** — independently deployable unit (runs as its own process)
+- **application** — end-user entry point (CLI, web app, mobile app)
+
+The tier classification rule: if it's deployed independently → `service`. If end users interact with it directly → `application`. If other domains adopt its types natively → `kernel`. Everything else → `domain`.
 
 ---
 

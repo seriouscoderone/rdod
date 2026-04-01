@@ -32,6 +32,11 @@
           "type": "string",
           "description": "Semver version of this domain spec (e.g., '1.0.0', '0.0.0-stub')"
         },
+        "tier": {
+          "type": "string",
+          "description": "Architectural tier: kernel | domain | service | application",
+          "enum": ["kernel", "domain", "service", "application"]
+        },
         "published_language": {
           "type": "array",
           "description": "Terms this domain authoritatively owns and exports for other domains to consume",
@@ -347,15 +352,29 @@
           "enum": ["inbound", "outbound"]
         },
         "name": { "type": "string" },
-        "contract": { "type": "string", "description": "Method/event signature" },
-        "protocol": {
+        "semantics": {
           "type": "string",
-          "description": "method-call | REST | GraphQL | events | message-queue"
+          "description": "command | query | event",
+          "enum": ["command", "query", "event"]
+        },
+        "idempotent": { "type": "boolean", "description": "Whether calling this port multiple times with the same input produces the same result" },
+        "contract": {
+          "type": "object",
+          "description": "Typed contract: input, output, and error references",
+          "properties": {
+            "input": { "type": "string", "description": "types:// or kernel://id#Type reference for input" },
+            "output": { "type": "string", "description": "types:// or kernel://id#Type reference for output" },
+            "errors": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "errors:// references for possible failures"
+            }
+          }
         },
         "refs": {
           "type": "array",
           "items": { "type": "string" },
-          "description": "Who uses this port (domain:// or kernel:// refs)"
+          "description": "Who uses this port (domain:// refs for inbound; domain:// refs or empty for outbound externals)"
         }
       }
     },

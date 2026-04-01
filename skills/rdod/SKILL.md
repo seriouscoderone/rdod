@@ -33,6 +33,7 @@ If a codebase module has no recognizable domain concepts after a brief inspectio
 4. **Kernels** — Which external libs am I adopting as native primitives?
 5. **Adjacents** — Which peer domains do I collaborate with laterally?
 6. **Externals** — What infra/IO concerns do I encapsulate behind interfaces?
+7. **Tier** — Is this a kernel (adopted primitive), domain (core logic), service (independently deployed), or application (end-user entry point)?
 
 ## The 5 Neighbor Types
 
@@ -71,6 +72,8 @@ If you find yourself writing `MyDomainThing(externalLib.TheirType)` → Kernel. 
 - **Inbound port** — interface domain clients use to drive this domain (Application Service, Facade, Command handler)
 - **Outbound port** — interface this domain uses for subdomains or externals (Repository, Adapter)
 - **Adapters** — concrete implementations of outbound ports (live outside the domain core)
+
+Each port defines a structured contract with typed `input`, `output`, and `errors` references (using `types://`, `errors://`, or `kernel://id#Type` URIs), plus `semantics` (command/query/event) and `idempotent` flag. Protocol (REST, gRPC, etc.) is not part of the port — it is derivable from the `tier` boundary between domains.
 
 Adjacent domains connect via agreed-upon contracts. Choose the context-map pattern that best describes the relationship:
 

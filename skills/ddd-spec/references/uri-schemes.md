@@ -7,7 +7,7 @@
 | Scheme | Grammar | Resolves to |
 |--------|---------|-------------|
 | `domain://` | `domain://{domain_id}` | `{domain_id}/domain.yaml` |
-| `kernel://` | `kernel://{domain_id}` | `{domain_id}/domain.yaml` (kernel adoption) |
+| `kernel://` | `kernel://{domain_id}[#{type_name}]` | `{domain_id}/domain.yaml` (kernel adoption); with fragment: specific type from the kernel |
 | `port://` | `port://{domain_id}/{direction}/{port_name}` | `{domain_id}/ports.yaml → ports[id == full_uri]` |
 | `types://` | `types://{domain_id}#{type_name}` | `{domain_id}/types.yaml → types[name == {type_name}]` |
 | `errors://` | `errors://{domain_id}#{error_name}` | `{domain_id}/errors.yaml → errors[name == {error_name}]` |
@@ -29,6 +29,7 @@ For any string matching `{scheme}://{rest}`:
 |--------|------------------|-------------|-----------------|
 | `domain://X` | `X/` exists | `X/domain.yaml` exists | — |
 | `kernel://X` | `X/` exists | `X/domain.yaml` exists | Referenced in another domain's `kernels:` |
+| `kernel://X#Y` | `X/` exists | `X/domain.yaml` exists | Type `Y` from kernel `X` — resolved by convention, not file lookup |
 | `port://X/dir/name` | `X/` exists | `X/ports.yaml` exists | `ports[].id` matches full URI |
 | `types://X#Y` | `X/` exists | `X/types.yaml` exists | `types[].name == Y` |
 | `errors://X#Y` | `X/` exists | `X/errors.yaml` exists | `errors[].name == Y` |
@@ -50,10 +51,10 @@ For any string matching `{scheme}://{rest}`:
 | Scheme | Valid in |
 |--------|---------|
 | `domain://` | Anywhere — structural references |
-| `kernel://` | `kernels[].ref`, `kernels[].source` only |
+| `kernel://` | `kernels[].ref`, `kernels[].source`, port `contract.input`/`contract.output` (with `#fragment` only) |
 | `port://` | `via_port`, `port_ref`, `delegates_to`, `externals[].ref` |
-| `types://` | `types.yaml` field types, `protocols.yaml` typed I/O |
-| `errors://` | `protocols.yaml` on_failure[].ref |
+| `types://` | `types.yaml` field types, `protocols.yaml` typed I/O, port `contract.input`/`contract.output` |
+| `errors://` | `protocols.yaml` on_failure[].ref, port `contract.errors` |
 | `verification://` | `protocols.yaml` preconditions[].ref |
 | `protocols://` | `integration-scenarios.yaml` scenario protocol refs |
 | `external://` | `externals[].ref` in domain.yaml |

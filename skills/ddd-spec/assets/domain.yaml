@@ -1,9 +1,10 @@
-template_version: "1.0"    # DDD-spec template format version — do not change
+template_version: "2.0"    # DDD-spec template format version — do not change
 id: ""
 name: ""
 description: ""
 version: "0.0.0-stub"
 intent: ""                 # optional: core | adapter | orchestrator | facade
+tier: ""                   # required: kernel | domain | service | application
 
 # Where this domain's specification came from
 source_material: []

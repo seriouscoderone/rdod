@@ -10,11 +10,12 @@ All refs use URI-style strings for linkability: `domain://<id>`, `port://<domain
 
 ```yaml
 # domain.yaml
-template_version: "1.0"    # DDD-spec template format version — do not change
+template_version: "2.0"    # DDD-spec template format version — do not change
 id: "<unique-id>"          # e.g., "video-editing" — globally unique, URI-friendly
 name: "<human-readable>"   # e.g., "Video Editing"
 description: "<what problem space this covers, scope, purpose>"
 version: "<semver>"        # e.g., "0.1.0" — use "0.0.0-stub" for unfilled stubs
+tier: "<kernel | domain | service | application>"  # required — architectural position
 
 # Where this domain's specification came from
 source_material:
@@ -75,6 +76,15 @@ issues:
 
 tags: []
 ```
+
+### Tier vs. Intent
+
+`tier` and `intent` are orthogonal:
+
+| Field | Question | Values | Example |
+|-------|----------|--------|---------|
+| `tier` | Where does this domain sit architecturally? | `kernel` (adopted primitive lib), `domain` (core business logic), `service` (independently deployable), `application` (end-user entry point) | A video editing SDK is `domain`; a color library it adopts natively is `kernel` |
+| `intent` | What does this domain do internally? | `core`, `adapter`, `orchestrator`, `facade` | An HTTP API layer is `adapter` regardless of whether its tier is `service` or `application` |
 
 ---
 
@@ -193,17 +203,40 @@ ports:
   - id: "port://<domain-id>/inbound/<name>"
     type: inbound             # Driving port — what clients call
     name: "<name>"
-    contract: "<method/event signature>"
-    protocol: "<method-call | REST | GraphQL | events | message-queue>"
+    semantics: "<command | query | event>"
+    idempotent: false
+    contract:
+      input: "types://<domain-id>#<InputType>"     # or kernel://<id>#<Type>
+      output: "types://<domain-id>#<OutputType>"
+      errors:
+        - "errors://<domain-id>#<ErrorType>"
     refs: ["domain://<client-id>"]   # who uses this port
 
   - id: "port://<domain-id>/outbound/<name>"
     type: outbound            # Driven port — what this domain calls out to
     name: "<name>"
-    contract: "<interface signature>"
-    protocol: "<method-call | events>"
-    refs: ["domain://<subdomain-or-external-id>"]
+    semantics: "<command | query | event>"
+    idempotent: false
+    contract:
+      input: "types://<domain-id>#<InputType>"
+      output: "types://<domain-id>#<OutputType>"
+      errors:
+        - "errors://<domain-id>#<ErrorType>"
+    refs: ["domain://<subdomain-id>"]  # domain:// refs for subdomains; empty for externals
 ```
+
+**Port fields:**
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `semantics` | Yes | `command` (mutates state), `query` (reads state), or `event` (notification) |
+| `idempotent` | Yes | Whether calling with the same input produces the same result |
+| `contract.input` | No | `types://` or `kernel://id#Type` reference for the input type |
+| `contract.output` | No | `types://` or `kernel://id#Type` reference for the output type |
+| `contract.errors` | No | Array of `errors://` references for possible failure types |
+| `refs` | No | Inbound: domain clients. Outbound: downstream domains (empty for externals) |
+
+Protocol (REST, gRPC, TCP, etc.) is **not** part of the port definition — it is derivable from the `tier` boundary between the consumer and provider domains.
 
 ---
 
@@ -395,10 +428,14 @@ validation_constraints:
 
 - Every `domain://` ref must resolve to an `id:` in another `domain.yaml`
 - Every `port://` ref must resolve to a port `id:` in the referenced domain's `ports.yaml`
-- `kernel://` refs do not require a `domain.yaml`. In a pre-code spec, validate that the kernel is a real library (check package registries or note as "planned")
+- `kernel://` refs without a `#fragment` do not require a `domain.yaml`. `kernel://id#TypeName` refs in port contracts resolve by convention — the fragment names a type from the kernel's package
 - Every `via_port:` must resolve to a port `id:` in the referenced domain's `ports.yaml`. For adjacents that communicate via events (no direct port call), omit `via_port` and document the event contract in the `relationship` field instead
 - No cycles in subdomain graph (adjacents may be mutual)
 - Each domain's `domain_clients` must be the mirror of some other domain's `subdomains` or `adjacents`
+- **External port wiring:** Every outbound port must either (a) have `refs` resolving to downstream domains, or (b) be referenced by an `externals[]` entry in the same domain's `domain.yaml`. An outbound port with neither is orphaned
+- **Kernel port exclusion:** Domains referenced as kernels by other domains should not define ports. Kernels are adopted directly with no interface boundary. If a kernel needs ports, reclassify it as a subdomain
+- **Error↔port mirror:** If an error in `errors.yaml` has `related_port` pointing to a port, and that port has a structured `contract.errors` list, the error's name (as `errors://<domain-id>#<ErrorName>`) must appear in that list. This is the same bidirectional linking pattern as `domain_clients` ↔ `subdomains`
+- **Port contract type resolution:** `types://` and `errors://` refs in `contract.input`, `contract.output`, and `contract.errors` must resolve to entries in the referenced domain's `types.yaml` or `errors.yaml` respectively
 
 ### Published Language Rules
 

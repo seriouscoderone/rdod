@@ -5,14 +5,22 @@ ports:
   - id: ""               # e.g., "port://video-editing/inbound/editing-api"
     type: inbound
     name: ""
-    contract: ""         # method/event signature
-    protocol: ""         # method-call | REST | GraphQL | events | message-queue
+    semantics: ""        # command | query | event
+    idempotent: false
+    contract:
+      input: ""          # types://domain-id#InputType or kernel://id#Type
+      output: ""         # types://domain-id#OutputType
+      errors: []         # - errors://domain-id#ErrorType
     refs: []             # who uses this port, e.g. ["domain://social-media-platform"]
 
   # Outbound — driven port: what this domain calls out to
   # - id: ""             # e.g., "port://video-editing/outbound/clip-store"
   #   type: outbound
   #   name: ""
-  #   contract: ""       # interface signature
-  #   protocol: ""       # method-call | events
-  #   refs: []           # what this port reaches, e.g. ["domain://format-handling"]
+  #   semantics: ""      # command | query | event
+  #   idempotent: false
+  #   contract:
+  #     input: ""
+  #     output: ""
+  #     errors: []
+  #   refs: []           # domain:// refs for subdomains; empty for externals

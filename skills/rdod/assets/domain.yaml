@@ -1,9 +1,10 @@
-template_version: "1.0"    # RDOD template format version — do not change
+template_version: "2.0"    # RDOD template format version — do not change
 id: ""
 name: ""
 description: ""
 version: "0.0.1"
 intent: ""                 # optional: core | adapter | orchestrator | facade
+tier: ""                   # required: kernel | domain | service | application
 
 # Terms this domain authoritatively owns and exports for other domains to consume
 published_language: []

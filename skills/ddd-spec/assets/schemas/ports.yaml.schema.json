@@ -16,8 +16,17 @@
           "type": { "type": "string", "enum": ["inbound", "outbound"] },
           "name": { "type": "string" },
           "description": { "type": "string" },
-          "contract": { "type": "string" },
-          "protocol": { "type": "string" },
+          "semantics": { "type": "string", "enum": ["command", "query", "event"] },
+          "idempotent": { "type": "boolean" },
+          "contract": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "input": { "type": "string" },
+              "output": { "type": "string" },
+              "errors": { "type": "array", "items": { "type": "string" } }
+            }
+          },
           "refs": { "type": "array", "items": { "type": "string" } },
           "notes": { "type": "string" },
           "invariants": { "type": "array", "items": { "type": "string" } },

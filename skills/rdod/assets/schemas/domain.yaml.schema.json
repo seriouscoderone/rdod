@@ -3,7 +3,7 @@
   "title": "RDOD domain.yaml",
   "type": "object",
   "additionalProperties": false,
-  "required": ["id", "name", "description"],
+  "required": ["id", "name", "description", "tier"],
   "properties": {
     "template_version": { "type": "string" },
     "id": { "type": "string" },
@@ -11,6 +11,7 @@
     "description": { "type": "string" },
     "version": { "type": "string" },
     "intent": { "type": "string", "enum": ["", "core", "adapter", "orchestrator", "facade"] },
+    "tier": { "type": "string", "enum": ["kernel", "domain", "service", "application"] },
     "source_material": {
       "type": "array",
       "items": {

@@ -91,7 +91,7 @@ The script resolves its HTML template and JSON schema relative to its own locati
 | Provenance | N/A | `source_material` (user-input, document, llm-inferred) |
 | Default version | `"0.0.1"` | `"0.0.0-stub"` |
 
-Both use `template_version: "1.0"` for forward compatibility.
+Both use `template_version: "2.0"` (structured port contracts, required tier field).
 
 ## Editing Guidelines
 

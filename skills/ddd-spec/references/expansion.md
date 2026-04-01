@@ -40,12 +40,12 @@ Produce a **candidate domain list** — the equivalent of RDOD's master checklis
 
 ```
 CANDIDATE DOMAIN LIST
-[ ] timeline            (core — central to seed)              source: seed text
-[ ] clip                (subdomain candidate)                  source: seed text
-[ ] rendering           (subdomain candidate)                  source: inferred
-[ ] format-handling     (subdomain candidate)                  source: whitepaper §3.2
-[ ] audio-processing    (adjacent candidate)                   source: seed text
-[ ] video-storage       (external candidate)                   source: inferred
+[ ] timeline            (core — central to seed)              tier: domain    source: seed text
+[ ] clip                (subdomain candidate)                  tier: domain    source: seed text
+[ ] rendering           (subdomain candidate)                  tier: domain    source: inferred
+[ ] format-handling     (subdomain candidate)                  tier: domain    source: whitepaper §3.2
+[ ] audio-processing    (adjacent candidate)                   tier: domain    source: seed text
+[ ] video-storage       (external candidate)                   tier: domain    source: inferred
 ```
 
 Mark each entry with:
@@ -190,6 +190,13 @@ Based on the neighbors:
 
 Fill `ports.yaml`.
 
+When filling ports, use structured contracts with typed references:
+- `contract.input`: `types://<domain-id>#<InputType>` or `kernel://<id>#<Type>` for kernel-provided types
+- `contract.output`: `types://<domain-id>#<OutputType>`
+- `contract.errors`: `errors://<domain-id>#<ErrorType>` referencing errors.yaml entries
+- Set `semantics` to `command` (mutates state), `query` (reads), or `event` (notification)
+- Set `idempotent` based on whether repeated calls with the same input produce the same result
+
 **Issue cue:** If a port's contract is hard to define → the domain boundary may be in the wrong place (`hierarchy-imbalance`) or the adjacent pattern needs revisiting.
 
 #### 5d — Events and rules
@@ -250,6 +257,17 @@ intent: "adapter"  # core | adapter | orchestrator | facade
 ```
 
 This tells the linter to adjust expectations (e.g., no UL terms warning for adapters).
+
+Also set `tier` to classify this domain's architectural position:
+
+```yaml
+tier: "domain"  # kernel | domain | service | application
+```
+
+- **kernel** — adopted primitive library whose types appear unchanged in other domains' public surfaces
+- **domain** — core business logic, the default for most modules
+- **service** — independently deployable unit (runs as its own process)
+- **application** — end-user entry point (CLI, web app, mobile app)
 
 ---
 

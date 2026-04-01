@@ -577,6 +577,33 @@ def check_completeness(specs, result):
             result.warn("completeness", sid, "no ubiquitous language terms defined")
 
 
+VALID_TIERS = {"kernel", "domain", "service", "application"}
+
+
+def check_tier(specs, result):
+    """Validate tier field — required on non-stub domains."""
+    for sid, spec in specs.items():
+        tier = spec.data.get("tier", "")
+        if spec.version == "0.0.0-stub":
+            continue
+        if not tier:
+            result.error("completeness", sid,
+                "missing required field: tier — must be one of: kernel, domain, service, application")
+        elif tier not in VALID_TIERS:
+            result.error("completeness", sid,
+                f"invalid tier '{tier}' — must be one of: kernel, domain, service, application")
+
+    # Kernels should not define ports
+    kernel_ids = set()
+    for sid, spec in specs.items():
+        for ref in spec.kernels:
+            kernel_ids.add(strip_prefix(ref))
+    for sid, spec in specs.items():
+        if sid in kernel_ids and spec.ports:
+            result.warn("ports", sid,
+                "domain is referenced as a kernel but defines ports — "
+                "kernels adopt types directly with no interface boundary; reclassify as subdomain if ports are needed")
+
 
 def check_term_uniqueness(specs, result):
     """No duplicate term names within a single domain."""
@@ -612,6 +639,15 @@ def check_orphans(specs, result):
                     "domain has no clients, no parent, no subdomains, no adjacents, and not referenced as kernel — isolated")
 
 
+def _port_key(port):
+    """Create a hashable key for a port for duplicate detection."""
+    name = port.get("name", "")
+    contract = port.get("contract")
+    if isinstance(contract, dict):
+        return (name, contract.get("input", ""), contract.get("output", ""))
+    return (name, str(contract or ""), "")
+
+
 def check_duplicate_ports(specs, result):
     """No two ports in a parent-child hierarchy should have the same name and contract."""
     for sid, spec in specs.items():
@@ -619,12 +655,37 @@ def check_duplicate_ports(specs, result):
             child_id = strip_prefix(ref)
             if child_id in specs:
                 child = specs[child_id]
-                parent_ports = {(p.get("name"), p.get("contract")) for p in spec.ports}
+                parent_ports = {_port_key(p) for p in spec.ports}
                 for cp in child.ports:
-                    key = (cp.get("name"), cp.get("contract"))
+                    key = _port_key(cp)
                     if key in parent_ports and key[0]:
                         result.warn("ports", sid,
                             f"port '{key[0]}' duplicated in child '{child_id}' with same contract — child should define, parent should reference via via_port")
+
+
+def check_external_port_wiring(specs, result):
+    """Every outbound port must either have refs resolving to domains OR be referenced by externals[]."""
+    for sid, spec in specs.items():
+        # Collect port:// URIs referenced from externals[]
+        external_port_refs = set()
+        for ext in spec.data.get("externals", []):
+            if isinstance(ext, dict):
+                ref = ext.get("ref", "")
+                if ref and str(ref).startswith("port://"):
+                    external_port_refs.add(str(ref))
+
+        for port in spec.ports:
+            if port.get("type") != "outbound":
+                continue
+            port_id = port.get("id", "")
+            refs = port.get("refs", []) or []
+            has_domain_refs = any(r for r in refs if r and isinstance(r, str) and "://" in r)
+            is_external_backed = port_id in external_port_refs
+
+            if not has_domain_refs and not is_external_backed:
+                result.warn("ports", sid,
+                    f"outbound port '{port.get('name', port_id)}' has no refs and is not "
+                    f"referenced by any externals[] entry — orphaned port")
 
 
 def check_verification_quality(specs, result):
@@ -1150,6 +1211,47 @@ def check_integration_scenarios(specs, domains_dir, result):
                             f"failure state references unknown domain '{dref}'")
 
 
+def check_error_port_mirror(specs, result):
+    """Cross-check errors.yaml related_port against port contract.errors lists."""
+    for sid, spec in specs.items():
+        edata = load_yaml(str(Path(spec.dir) / "errors.yaml"))
+        if not edata:
+            continue
+
+        # Build error→port map from errors.yaml
+        error_to_port = {}
+        for e in edata.get("errors", []):
+            if isinstance(e, dict) and e.get("name") and e.get("related_port"):
+                error_to_port[e["name"]] = e["related_port"]
+
+        # Build port→errors map from ports.yaml structured contracts
+        port_to_errors = {}
+        for port in spec.ports:
+            contract = port.get("contract")
+            if not isinstance(contract, dict):
+                continue
+            for err_ref in contract.get("errors", []):
+                scheme, domain_path, fragment = _parse_typed_ref(err_ref)
+                if scheme == "errors" and domain_path == sid and fragment:
+                    port_to_errors.setdefault(port.get("id", ""), set()).add(fragment)
+
+        # Check: error claims related_port but port doesn't list it
+        for error_name, port_ref in error_to_port.items():
+            errors_in_port = port_to_errors.get(port_ref, set())
+            if errors_in_port and error_name not in errors_in_port:
+                result.error("error-port-mirror", sid,
+                    f"error '{error_name}' claims related_port '{port_ref}' "
+                    f"but that port's contract.errors does not list 'errors://{sid}#{error_name}'")
+
+        # Check: port lists error but error doesn't claim related_port
+        for port_id, error_names in port_to_errors.items():
+            for ename in error_names:
+                if ename in error_to_port and error_to_port[ename] != port_id:
+                    result.error("error-port-mirror", sid,
+                        f"port '{port_id}' lists error '{ename}' but error's "
+                        f"related_port points to '{error_to_port[ename]}' instead")
+
+
 def check_recovery_target_refs(specs, result):
     """Cross-reference recovery_target fields against UL terms."""
     all_terms = set()
@@ -1174,77 +1276,87 @@ def check_recovery_target_refs(specs, result):
                     f"not defined as a UL term or synonym in any domain")
 
 
+def _parse_typed_ref(uri):
+    """Parse a typed URI ref into (scheme, domain_path, fragment). Returns (None,None,None) if not a URI."""
+    if not uri or not isinstance(uri, str) or "://" not in uri:
+        return None, None, None
+    scheme, rest = uri.split("://", 1)
+    fragment = None
+    if "#" in rest:
+        rest, fragment = rest.split("#", 1)
+    return scheme, rest, fragment
+
+
 def check_contract_type_refs(specs, result):
-    """Parse PascalCase type names from port contracts and verify against types.yaml + UL terms."""
-    import re
-    # PascalCase compound words (at least one lowercase→uppercase transition)
-    PASCAL_ID = re.compile(r'\b[A-Z][a-z]+(?:[A-Z][a-z]+)+\b')
-    BUILTINS = {"Result", "Iterator", "NotFound", "NotApplicable", "AlreadyExists",
-                "NotSupported", "InvalidInput"}
-
-    # Load contract-types whitelist
-    whitelist = set()
-    for sid, spec in specs.items():
-        wl_path = Path(spec.dir).parent / ".contract-types-whitelist"
-        if wl_path.exists():
-            try:
-                for line in wl_path.read_text(encoding="utf-8").splitlines():
-                    line = line.strip()
-                    if line and not line.startswith("#"):
-                        whitelist.add(line)
-            except (IOError, OSError):
-                pass
-            break  # one whitelist per spec root
-
-    # Build global type, term, and error name registries
-    all_type_names = set()
-    all_term_names = set()
-    all_error_names = set()
+    """Validate typed references in structured port contracts (input, output, errors)."""
+    # Build registries for resolution checking
+    type_registry = {}  # domain_id -> set of type names
+    error_registry = {}  # domain_id -> set of error names
     for sid, spec in specs.items():
         tdata = load_yaml(str(Path(spec.dir) / "types.yaml"))
+        type_registry[sid] = set()
         if tdata:
             for t in tdata.get("types", []):
                 if isinstance(t, dict) and t.get("name"):
-                    all_type_names.add(t["name"])
+                    type_registry[sid].add(t["name"])
         edata = load_yaml(str(Path(spec.dir) / "errors.yaml"))
+        error_registry[sid] = set()
         if edata:
             for e in edata.get("errors", []):
                 if isinstance(e, dict) and e.get("name"):
-                    all_error_names.add(e["name"])
-        for t in spec.terms:
-            all_term_names.add(t.get("term", ""))
-
-    # Collect port-local type names across all ports
-    all_port_local_types = set()
-    port_local_by_domain = defaultdict(set)
-    for sid, spec in specs.items():
-        for port in spec.ports:
-            local_types = port.get("types", {})
-            if isinstance(local_types, dict):
-                for tname in local_types:
-                    all_port_local_types.add(tname)
-                    port_local_by_domain[sid].add(tname)
-
-    known = all_type_names | all_term_names | all_error_names | all_port_local_types | BUILTINS | whitelist
+                    error_registry[sid].add(e["name"])
 
     for sid, spec in specs.items():
         for port in spec.ports:
-            contract = port.get("contract", "")
-            if not contract:
+            contract = port.get("contract")
+            if not contract or not isinstance(contract, dict):
                 continue
-            identifiers = set(PASCAL_ID.findall(contract))
-            for ident in identifiers:
-                if ident not in known:
-                    result.warn("contract-type-ref", sid,
-                        f"port '{port.get('name', port.get('id', '?'))}' contract references "
-                        f"type '{ident}' — not found in any types.yaml, errors.yaml, or UL terms")
+            port_name = port.get("name", port.get("id", "?"))
 
-    # Info: suggest moving port-local types to types.yaml
-    for sid, local_names in port_local_by_domain.items():
-        if local_names:
-            result.info("port-local-types", sid,
-                f"port(s) define types locally — consider moving {', '.join(sorted(local_names))} "
-                f"to {sid}/types.yaml for discoverability")
+            # Validate input and output type refs
+            for field_name in ("input", "output"):
+                val = contract.get(field_name, "")
+                if not val:
+                    continue
+                scheme, domain_path, fragment = _parse_typed_ref(val)
+                if not scheme:
+                    continue
+                if scheme == "types":
+                    if domain_path not in specs:
+                        result.error("contract-type-ref", sid,
+                            f"port '{port_name}' contract.{field_name} references "
+                            f"unknown domain: '{val}'")
+                    elif fragment and fragment not in type_registry.get(domain_path, set()):
+                        result.warn("contract-type-ref", sid,
+                            f"port '{port_name}' contract.{field_name} references "
+                            f"type '{fragment}' not found in {domain_path}/types.yaml")
+                elif scheme == "kernel":
+                    # kernel://id#Type — kernel types resolve by convention, not file lookup
+                    if not fragment:
+                        result.error("contract-type-ref", sid,
+                            f"port '{port_name}' contract.{field_name} uses kernel:// "
+                            f"without #TypeName fragment: '{val}'")
+
+            # Validate error refs
+            for err_ref in contract.get("errors", []):
+                if not err_ref:
+                    continue
+                scheme, domain_path, fragment = _parse_typed_ref(err_ref)
+                if not scheme:
+                    continue
+                if scheme == "errors":
+                    if domain_path not in specs:
+                        result.error("contract-type-ref", sid,
+                            f"port '{port_name}' contract.errors references "
+                            f"unknown domain: '{err_ref}'")
+                    elif fragment and fragment not in error_registry.get(domain_path, set()):
+                        result.warn("contract-type-ref", sid,
+                            f"port '{port_name}' contract.errors references "
+                            f"error '{fragment}' not found in {domain_path}/errors.yaml")
+                else:
+                    result.error("contract-type-ref", sid,
+                        f"port '{port_name}' contract.errors must use errors:// scheme, "
+                        f"got: '{err_ref}'")
 
 
 # ── URI Resolution Rules ──────────────────────────────────────────────────────
@@ -1377,8 +1489,8 @@ def check_uri_resolution(specs, result):
 
 
 def check_scheme_consistency(specs, result):
-    """Validate kernel:// only appears in kernels: sections. domain:// is valid everywhere."""
-    # kernel:// is valid in: kernels[].ref, kernels[].source
+    """Validate kernel:// usage: allowed in kernels[] and port contract input/output (with fragment)."""
+    # kernel:// is valid in: kernels[].ref, kernels[].source, port contract input/output (with #fragment)
     # kernel:// is invalid in: adjacents, from, specializes, domain_clients, subdomains
     KERNEL_VALID_CONTEXTS = {"kernels"}
 
@@ -1422,7 +1534,7 @@ UL_SECTION_RULES = {
 
 CANONICAL_ORDER = {
     "ubiquitous-language.yaml": ["domain_ref", "imports", "terms", "events", "rules"],
-    "domain.yaml": ["template_version", "id", "name", "description", "version", "intent",
+    "domain.yaml": ["template_version", "id", "name", "description", "version", "intent", "tier",
                      "source_material", "published_language",
                      "domain_clients", "subdomains", "kernels", "adjacents",
                      "externals", "implementation_guidance", "issues", "tags"],
@@ -1641,14 +1753,14 @@ RULE_CATEGORIES = {
     "relationships": [check_mirror_consistency],
     "cycles": [check_cycles],
     "terms": [check_published_language, check_term_uniqueness],
-    "ports": [check_duplicate_ports],
+    "ports": [check_duplicate_ports, check_external_port_wiring],
     "verification": [check_verification_quality, check_validation_constraints],
     "files": [check_missing_files],
     "vocabulary": [check_implementation_vocabulary],
     "schema": [check_schema_conformance],
-    "completeness": [check_completeness, check_orphans],
+    "completeness": [check_completeness, check_tier, check_orphans],
     "hierarchy": [check_folder_hierarchy],
-    "cross-refs": [check_type_references, check_typeref_syntax, check_duplicate_errors, check_recovery_target_refs, check_integration_scenarios, check_contract_type_refs],
+    "cross-refs": [check_type_references, check_typeref_syntax, check_duplicate_errors, check_recovery_target_refs, check_error_port_mirror, check_integration_scenarios, check_contract_type_refs],
     "yaml-structure": [check_section_item_types, check_duplicate_yaml_keys, check_section_ordering, check_term_count],
     "depth-audit": [check_source_material_coverage, check_type_variant_completeness],
     "uri-resolution": [check_uri_resolution, check_scheme_consistency],
