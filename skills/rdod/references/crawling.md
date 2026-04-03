@@ -77,6 +77,8 @@ Inside the domain's source folder:
 6. **Published language:** If any terms are foundational concepts that other domains depend on (used across multiple modules), add them to `published_language` in `domain.yaml`. Other domains should import these rather than redefining them.
 7. **Imports and specializations:** If this domain uses terms defined in a parent or sibling domain's `published_language`, add an `imports` entry in `ubiquitous-language.yaml`. If it narrows a parent's term, add `specializes: "domain://<parent>"` on the term.
 
+**Naming quality gate:** Code names are implementation terms — they are inputs to linguistic discovery, not the output. For each extracted term, apply the three naming tests (production, readability, verb) from `references/linguistic-discovery.md`. Check the pattern recognition table: is this a Service wearing a Repository name? A domain named after an implementation artifact? Translate to adopter language before writing to `ubiquitous-language.yaml`.
+
 **Issue cue:** If invariants are enforced ad-hoc across multiple places (repeated validation logic, no single owner) rather than inside a named aggregate or value object → log `modeling-gap` (`recommendation: introduce-concept:<proposed-name>`).
 
 **Pattern detection:** After extracting 3+ terms, check for shared structural patterns. If multiple types have the same set of fields/invariant categories but differ only in specific values (e.g., 7 escrow types each with a trigger, storage location, timeout, and reprocess condition), extract a pattern term that defines the common structure. Add a `pattern` field to each instance term in `ubiquitous-language.yaml`. This signals that a parameterized implementation is appropriate and that the domain should NOT be further decomposed — splitting instances of the same pattern into separate subdomains is over-nesting.
@@ -200,6 +202,8 @@ When filling ports, use structured contracts with typed references:
 - `contract.errors`: `errors://<domain-id>#<ErrorType>` referencing errors.yaml entries
 - Set `semantics` to `command` (mutates state), `query` (reads), or `event` (notification)
 - Set `idempotent` based on whether repeated calls with the same input produce the same result
+
+**Port naming gate:** Check each port name against the verb test. Code-extracted port names often reflect implementation function signatures — translate to adopter verbs. See `references/linguistic-discovery.md` for the verb translation table.
 
 **Domain logic vs. implementation:** The domain owns the *interface* (e.g., "a repository for storing clips"). The concrete implementation (e.g., "PostgreSQL with table `clips`") lives outside the domain and is noted in `implementation_notes` on the external entry. When filling externals, name the abstraction the domain needs, not the technology behind it. The technology is evidence for the implementation notes, not the domain model.
 

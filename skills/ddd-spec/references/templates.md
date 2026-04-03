@@ -86,6 +86,10 @@ tags: []
 | `tier` | Where does this domain sit architecturally? | `kernel` (adopted primitive lib), `domain` (core business logic), `service` (independently deployable), `application` (end-user entry point) | A video editing SDK is `domain`; a color library it adopts natively is `kernel` |
 | `intent` | What does this domain do internally? | `core`, `adapter`, `orchestrator`, `facade` | An HTTP API layer is `adapter` regardless of whether its tier is `service` or `application` |
 
+### Naming Quality
+
+Domain `id` and `name` should pass the readability test: a technical adopter who has never seen the implementation should understand what this domain is about from its name alone. Avoid implementation artifacts (class names, database names, framework terms) as domain names. See `references/linguistic-discovery.md` for naming tests and the pattern recognition table.
+
 ---
 
 ## Issue Categories
@@ -237,6 +241,8 @@ ports:
 | `refs` | No | Inbound: domain clients. Outbound: downstream domains (empty for externals) |
 
 Protocol (REST, gRPC, TCP, etc.) is **not** part of the port definition — it is derivable from the `tier` boundary between the consumer and provider domains.
+
+Port `name` and operation descriptions should use adopter verbs, not mechanism verbs. "approve-delegation" is better than "anchor-seal." "send-notification" is better than "serialize-and-queue." See `references/linguistic-discovery.md` for the verb translation table.
 
 ---
 

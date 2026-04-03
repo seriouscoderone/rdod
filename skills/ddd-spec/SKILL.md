@@ -31,6 +31,8 @@ This enables recursive navigation: orient identically at every depth of the hier
 6. **Externals** — What infra/IO concerns do I encapsulate behind interfaces?
 7. **Tier** — Is this a kernel (adopted primitive), domain (core logic), service (independently deployed), or application (end-user entry point)?
 
+Answer these questions in language a technical adopter would use — not implementation jargon. See `references/linguistic-discovery.md` for naming tests and the red flags checklist.
+
 ## The 5 Neighbor Types
 
 | Type | Relation | Nature | Example |

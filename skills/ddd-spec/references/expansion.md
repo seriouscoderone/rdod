@@ -104,6 +104,8 @@ Using the nouns and verbs extracted in Step 2 that belong to this domain, draft 
 
 Fill `ubiquitous-language.yaml` (the sole source of truth for all term content — terms, imports, specializes, synonyms, examples, related terms).
 
+**Naming quality gate:** Before finalizing terms, run each through the three naming tests (production, readability, verb) from `references/linguistic-discovery.md`. Explore at least 2 alternative names for each domain-level term. Code terms and protocol jargon are starting points, not final names — translate to adopter language.
+
 Present the language to the user: "Here are the core terms for [domain]. Are these definitions accurate? Terms missing? Invariants wrong?"
 
 **Issue cue:** If a term seems to mean different things in different contexts within this domain → the domain may need splitting (`hierarchy-imbalance`).
@@ -173,6 +175,8 @@ For each neighbor identified:
 - For adjacents with `is_cross_cutting: true`: ensure they have their own language and clear boundaries
 - For externals: name the abstraction type (Repository, Service, Adapter)
 
+**Verb translation gate:** For each cross-domain relationship, check the verb. Are port names and relationship descriptions using mechanism verbs ("anchors," "serializes," "escrows") or adopter verbs ("approves," "sends," "defers")? See the adopter verb translation table in `references/linguistic-discovery.md`.
+
 Present the neighborhood to the user: "Here's how [domain] relates to its neighbors. Does the classification feel right?"
 
 **Issue cues:**
@@ -196,6 +200,8 @@ When filling ports, use structured contracts with typed references:
 - `contract.errors`: `errors://<domain-id>#<ErrorType>` referencing errors.yaml entries
 - Set `semantics` to `command` (mutates state), `query` (reads), or `event` (notification)
 - Set `idempotent` based on whether repeated calls with the same input produce the same result
+
+**Port naming gate:** Port names and operation names should use adopter verbs, not mechanism verbs. Apply the verb test: "What verb does the adopter use when they call this port?" If the answer is a mechanism verb, translate it. See `references/linguistic-discovery.md`.
 
 **Issue cue:** If a port's contract is hard to define → the domain boundary may be in the wrong place (`hierarchy-imbalance`) or the adjacent pattern needs revisiting.
 
