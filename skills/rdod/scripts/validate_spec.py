@@ -594,16 +594,20 @@ def check_tier(specs, result):
             result.error("completeness", sid,
                 f"invalid tier '{tier}' — must be one of: kernel, domain, service, application")
 
-    # Kernels should not define ports
+    # Kernels should not define ports — but trust explicit tier: kernel classification
     kernel_ids = set()
     for sid, spec in specs.items():
         for ref in spec.kernels:
             kernel_ids.add(strip_prefix(ref))
     for sid, spec in specs.items():
         if sid in kernel_ids and spec.ports:
-            result.warn("ports", sid,
-                "domain is referenced as a kernel but defines ports — "
-                "kernels adopt types directly with no interface boundary; reclassify as subdomain if ports are needed")
+            if spec.data.get("tier") == "kernel":
+                result.info("ports", sid,
+                    "kernel defines ports — treated as type-level operations, not domain contracts")
+            else:
+                result.warn("ports", sid,
+                    "domain is referenced as a kernel but defines ports — "
+                    "kernels adopt types directly with no interface boundary; reclassify as subdomain if ports are needed")
 
 
 def check_term_uniqueness(specs, result):
@@ -1254,7 +1258,7 @@ def check_error_port_mirror(specs, result):
 
 
 def check_recovery_target_refs(specs, result):
-    """Cross-reference recovery_target fields against UL terms."""
+    """Cross-reference recovery_target fields against UL terms and type enum values."""
     all_terms = set()
     for sid, spec in specs.items():
         for t in spec.terms:
@@ -1262,6 +1266,29 @@ def check_recovery_target_refs(specs, result):
             for syn in t.get("synonyms", []):
                 if isinstance(syn, str):
                     all_terms.add(syn)
+
+    # Also collect enum values from types.yaml — recovery_target often references these
+    all_enum_values = set()
+    for sid, spec in specs.items():
+        tdata = load_yaml(str(Path(spec.dir) / "types.yaml"))
+        if not tdata:
+            continue
+        for t in tdata.get("types", []):
+            if not isinstance(t, dict):
+                continue
+            for variant in t.get("variants", []):
+                if not isinstance(variant, dict):
+                    continue
+                for field in variant.get("fields", []):
+                    if not isinstance(field, dict):
+                        continue
+                    constraints = field.get("constraints", {})
+                    if isinstance(constraints, dict):
+                        for val in constraints.get("enum", []):
+                            if isinstance(val, str):
+                                all_enum_values.add(val)
+
+    known_targets = all_terms | all_enum_values
 
     for sid, spec in specs.items():
         edata = load_yaml(str(Path(spec.dir) / "errors.yaml"))
@@ -1271,10 +1298,10 @@ def check_recovery_target_refs(specs, result):
             if not isinstance(err, dict):
                 continue
             target = err.get("recovery_target", "") or err.get("escrow_queue", "")
-            if target and target not in all_terms:
+            if target and target not in known_targets:
                 result.warn("recovery-target-ref", sid,
                     f"error '{err.get('name', '?')}' recovery_target '{target}' "
-                    f"not defined as a UL term or synonym in any domain")
+                    f"not defined as a UL term, synonym, or type enum value in any domain")
 
 
 def _parse_typed_ref(uri):
