@@ -45,7 +45,7 @@ CANDIDATE DOMAIN LIST
 [ ] rendering           (subdomain candidate)                  tier: domain    source: inferred
 [ ] format-handling     (subdomain candidate)                  tier: domain    source: whitepaper §3.2
 [ ] audio-processing    (adjacent candidate)                   tier: domain    source: seed text
-[ ] video-storage       (external candidate)                   tier: domain    source: inferred
+[ ] video-storage       (external candidate)                   tier: external  source: inferred
 ```
 
 Mark each entry with:
@@ -267,11 +267,12 @@ This tells the linter to adjust expectations (e.g., no UL terms warning for adap
 Also set `tier` to classify this domain's architectural position:
 
 ```yaml
-tier: "domain"  # kernel | domain | service | application
+tier: "domain"  # kernel | domain | external | service | application
 ```
 
 - **kernel** — adopted primitive library whose types appear unchanged in other domains' public surfaces
 - **domain** — core business logic, the default for most modules
+- **external** — infrastructure or storage behind a domain-owned interface (database, blob store, third-party API)
 - **service** — independently deployable unit (runs as its own process)
 - **application** — end-user entry point (CLI, web app, mobile app)
 

@@ -243,10 +243,11 @@ Also set `tier` to classify this domain's architectural position:
 
 - **kernel** — adopted primitive library whose types appear unchanged in other domains' public surfaces
 - **domain** — core business logic, the default for most modules
+- **external** — infrastructure or storage behind a domain-owned interface (database, blob store, third-party API)
 - **service** — independently deployable unit (runs as its own process)
 - **application** — end-user entry point (CLI, web app, mobile app)
 
-The tier classification rule: if it's deployed independently → `service`. If end users interact with it directly → `application`. If other domains adopt its types natively → `kernel`. Everything else → `domain`.
+The tier classification rule: if it's deployed independently → `service`. If end users interact with it directly → `application`. If other domains adopt its types natively → `kernel`. If it's infrastructure behind an outbound port (persistence, external API, message queue) → `external`. Everything else → `domain`.
 
 ---
 

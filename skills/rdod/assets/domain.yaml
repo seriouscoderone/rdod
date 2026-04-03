@@ -4,7 +4,7 @@ name: ""
 description: ""
 version: "0.0.1"
 intent: ""                 # optional: core | adapter | orchestrator | facade
-tier: ""                   # required: kernel | domain | service | application
+tier: ""                   # required: kernel | domain | external | service | application
 
 # Terms this domain authoritatively owns and exports for other domains to consume
 published_language: []

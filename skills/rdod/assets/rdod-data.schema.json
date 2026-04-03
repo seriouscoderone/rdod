@@ -34,8 +34,8 @@
         },
         "tier": {
           "type": "string",
-          "description": "Architectural tier: kernel | domain | service | application",
-          "enum": ["kernel", "domain", "service", "application"]
+          "description": "Architectural tier: kernel | domain | external | service | application",
+          "enum": ["kernel", "domain", "external", "service", "application"]
         },
         "published_language": {
           "type": "array",

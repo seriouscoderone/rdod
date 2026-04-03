@@ -15,7 +15,7 @@ id: "<unique-id>"          # e.g., "video-editing" — globally unique, URI-frie
 name: "<human-readable>"   # e.g., "Video Editing"
 description: "<what problem space this covers, scope, purpose>"
 version: "<semver>"        # e.g., "0.1.0" — use "0.0.0-stub" for unfilled stubs
-tier: "<kernel | domain | service | application>"  # required — architectural position
+tier: "<kernel | domain | external | service | application>"  # required — architectural position
 
 # Where this domain's specification came from
 source_material:
@@ -83,7 +83,7 @@ tags: []
 
 | Field | Question | Values | Example |
 |-------|----------|--------|---------|
-| `tier` | Where does this domain sit architecturally? | `kernel` (adopted primitive lib), `domain` (core business logic), `service` (independently deployable), `application` (end-user entry point) | A video editing SDK is `domain`; a color library it adopts natively is `kernel` |
+| `tier` | Where does this domain sit architecturally? | `kernel` (adopted primitive lib), `domain` (core business logic), `external` (infrastructure/storage behind an interface), `service` (independently deployable), `application` (end-user entry point) | A video editing SDK is `domain`; a color library it adopts natively is `kernel`; a persistence layer is `external` |
 | `intent` | What does this domain do internally? | `core`, `adapter`, `orchestrator`, `facade` | An HTTP API layer is `adapter` regardless of whether its tier is `service` or `application` |
 
 ### Naming Quality

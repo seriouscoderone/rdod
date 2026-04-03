@@ -571,13 +571,14 @@ def check_completeness(specs, result):
         if spec.version == "0.0.0-stub":
             result.warn("stub-detection", sid, "domain is still a stub (version: 0.0.0-stub)")
 
-        # Empty language — skip for intentionally thin domains
+        # Empty language — skip for intentionally thin domains and externals
         intent = spec.data.get("intent", "")
-        if not spec.terms and intent not in ("adapter", "facade", "thin"):
+        tier = spec.data.get("tier", "")
+        if not spec.terms and intent not in ("adapter", "facade", "thin") and tier not in ("external", "kernel"):
             result.warn("completeness", sid, "no ubiquitous language terms defined")
 
 
-VALID_TIERS = {"kernel", "domain", "service", "application"}
+VALID_TIERS = {"kernel", "domain", "external", "service", "application"}
 
 
 def check_tier(specs, result):

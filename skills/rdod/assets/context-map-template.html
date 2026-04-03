@@ -516,13 +516,13 @@ function renderSidebar(filter) {
     const d = getDomain(id);
     if (!d) return 'domain';
     const tier = (d.tier || '').toLowerCase();
-    if (['kernel', 'domain', 'service', 'application'].includes(tier)) return tier;
+    if (['kernel', 'domain', 'external', 'service', 'application'].includes(tier)) return tier;
     return 'domain';
   }
 
-  const layerOrder = ['kernel', 'domain', 'service', 'application'];
-  const layerLabels = { kernel: 'KERNELS', domain: 'DOMAINS', service: 'SERVICES', application: 'APPLICATIONS' };
-  const grouped = { kernel: [], domain: [], service: [], application: [] };
+  const layerOrder = ['kernel', 'external', 'domain', 'service', 'application'];
+  const layerLabels = { kernel: 'KERNELS', external: 'EXTERNALS', domain: 'DOMAINS', service: 'SERVICES', application: 'APPLICATIONS' };
+  const grouped = { kernel: [], external: [], domain: [], service: [], application: [] };
   roots.forEach(id => {
     grouped[getLayer(id)].push(id);
   });

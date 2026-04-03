@@ -4,7 +4,7 @@ name: ""
 description: ""
 version: "0.0.0-stub"
 intent: ""                 # optional: core | adapter | orchestrator | facade
-tier: ""                   # required: kernel | domain | service | application
+tier: ""                   # required: kernel | domain | external | service | application
 
 # Where this domain's specification came from
 source_material: []
