@@ -16,6 +16,11 @@
           "description": { "type": "string" },
           "default_variant": { "type": "string" },
           "construction_defaults": {},
+          "builder": { "type": "object" },
+          "notes": { "type": "string" },
+          "invariants": { "type": "array" },
+          "naming_note": { "type": "string" },
+          "behavioral_subtype_note": { "type": "string" },
           "encoding": {
             "type": "array",
             "items": {
@@ -39,6 +44,8 @@
                 "description": { "type": "string" },
                 "invariants": { "type": "array" },
                 "examples": { "type": "array" },
+                "builder": { "type": "object" },
+                "notes": { "type": "string" },
                 "fields": {
                   "type": "array",
                   "items": {
@@ -50,6 +57,7 @@
                       "type": { "type": "string" },
                       "required": { "type": "boolean" },
                       "description": { "type": "string" },
+                      "notes": { "type": "string" },
                       "constraints": {}
                     }
                   }

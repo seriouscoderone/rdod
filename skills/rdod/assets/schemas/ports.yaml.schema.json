@@ -24,12 +24,16 @@
             "properties": {
               "input": { "type": "string" },
               "output": { "type": "string" },
-              "errors": { "type": "array", "items": { "type": "string" } }
+              "errors": { "type": "array", "items": { "type": "string" } },
+              "operations": { "type": "array" },
+              "preconditions": { "type": "array" },
+              "invariants": { "type": "array" }
             }
           },
           "refs": { "type": "array", "items": { "type": "string" } },
           "notes": { "type": "string" },
           "invariants": { "type": "array", "items": { "type": "string" } },
+          "postconditions": { "type": "array" },
           "types": { "type": "object" },
           "delegates_to": { "oneOf": [{ "type": "string" }, { "type": "array", "items": { "type": "string" } }] }
         }

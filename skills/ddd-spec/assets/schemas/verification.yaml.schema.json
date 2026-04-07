@@ -39,7 +39,14 @@
           "preconditions": { "type": "array" },
           "postconditions": { "type": "array" },
           "precondition": { "type": "string" },
-          "postcondition": { "type": "string" }
+          "postcondition": { "type": "string" },
+          "operations": { "type": "array" },
+          "invariant": { "type": "string" },
+          "term": { "type": "string" },
+          "technique": { "type": "string" },
+          "formal": { "type": "object" },
+          "strategy": { "type": "string" },
+          "notes": { "type": "string" }
         }
       }
     },
