@@ -203,6 +203,8 @@ When filling ports, use structured contracts with typed references:
 
 **Port naming gate:** Port names and operation names should use adopter verbs, not mechanism verbs. Apply the verb test: "What verb does the adopter use when they call this port?" If the answer is a mechanism verb, translate it. See `references/linguistic-discovery.md`.
 
+For repository-style outbound ports (store/retrieve/remove/iterate), use `contract.operations` to list each operation as a sub-contract rather than creating separate ports. Add `contract.preconditions` and `postconditions` when the port enforces invariants the caller must know about.
+
 **Issue cue:** If a port's contract is hard to define → the domain boundary may be in the wrong place (`hierarchy-imbalance`) or the adjacent pattern needs revisiting.
 
 #### 5d — Events and rules
@@ -249,6 +251,8 @@ For domains with significant complexity, fill the optional companion files:
 **errors.yaml** — What errors can this domain produce? For each: name, cause, recovery strategy (retry/escrow/escalate/abort), severity (fatal/recoverable/transient), and context fields. Link each error to the port operation that produces it.
 
 **types.yaml** — What key data structures does this domain define? For types that cross domain boundaries or need exact reproduction: variants, fields with types and constraints, construction defaults, and encoding rules.
+
+For complex types with 3+ required fields or cross-field validation rules, add a `builder` section documenting the construction interface (required/optional params, validation). Add `notes` at the type, variant, or field level for domain knowledge that doesn't fit other fields. Add `naming_note` if a name was deliberately chosen through linguistic discovery and the rationale should be preserved.
 
 **protocols.yaml** — Does this domain orchestrate multi-domain flows? Document: participants, step ordering with dependencies, failure paths with compensation, timeouts, and terminal states.
 

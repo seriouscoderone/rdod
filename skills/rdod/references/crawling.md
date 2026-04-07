@@ -205,6 +205,8 @@ When filling ports, use structured contracts with typed references:
 
 **Port naming gate:** Check each port name against the verb test. Code-extracted port names often reflect implementation function signatures — translate to adopter verbs. See `references/linguistic-discovery.md` for the verb translation table.
 
+For repository-style outbound ports (store/retrieve/remove/iterate), use `contract.operations` to list each operation as a sub-contract rather than creating separate ports. Add `contract.preconditions` and `postconditions` when the port enforces invariants the caller must know about.
+
 **Domain logic vs. implementation:** The domain owns the *interface* (e.g., "a repository for storing clips"). The concrete implementation (e.g., "PostgreSQL with table `clips`") lives outside the domain and is noted in `implementation_notes` on the external entry. When filling externals, name the abstraction the domain needs, not the technology behind it. The technology is evidence for the implementation notes, not the domain model.
 
 **Issue cues:**
@@ -221,6 +223,8 @@ For domains with significant complexity, fill the optional companion files:
 **errors.yaml** — Scan for error types, exception classes, and error handling patterns. For each error the domain can produce, record: name, cause, recovery strategy (retry/escrow/escalate/abort), severity (fatal/recoverable/transient), and context fields. Link each error to the port operation that produces it.
 
 **types.yaml** — For domains with key data structures (not just simple value objects), extract formal type definitions: variants, fields with types and constraints, construction defaults, and encoding rules. Focus on types that cross domain boundaries or that an implementor would need to reproduce exactly.
+
+For complex types with 3+ required fields or cross-field validation rules, add a `builder` section documenting the construction interface (required/optional params, validation). Add `notes` at the type, variant, or field level for domain knowledge that doesn't fit other fields. Add `naming_note` if a name was deliberately chosen through linguistic discovery and the rationale should be preserved.
 
 **protocols.yaml** — For domains that orchestrate multi-domain flows, document the end-to-end sequences: participants, step ordering with dependencies, failure paths with compensation, timeouts, and terminal states. This is most valuable for parent/orchestrator domains.
 

@@ -238,7 +238,13 @@ ports:
 | `contract.input` | No | `types://` or `kernel://id#Type` reference for the input type |
 | `contract.output` | No | `types://` or `kernel://id#Type` reference for the output type |
 | `contract.errors` | No | Array of `errors://` references for possible failure types |
+| `contract.operations` | No | Array of operation sub-contracts for multi-operation CRUD ports (see below) |
+| `contract.preconditions` | No | Array of precondition assertions — what must be true before calling |
+| `contract.invariants` | No | Array of invariants that hold across all operations on this port |
+| `postconditions` | No | Array of postcondition assertions — what is guaranteed after calling |
 | `refs` | No | Inbound: domain clients. Outbound: downstream domains (empty for externals) |
+
+**Multi-operation ports (`contract.operations`):** When a single port exposes multiple related operations (e.g., a repository port with store/retrieve/remove/iterate), list them as an `operations` array inside the contract. Each operation has its own input/output/errors. Use this instead of creating separate ports when the operations share the same domain boundary and the adopter thinks of them as one interface.
 
 Protocol (REST, gRPC, TCP, etc.) is **not** part of the port definition — it is derivable from the `tier` boundary between the consumer and provider domains.
 
@@ -280,8 +286,19 @@ domain_ref: "<domain-id>"
 types:
   - name: "<TypeName>"
     description: "<what this type represents>"
+    notes: "<optional — inline clarification, design rationale>"
+    naming_note: "<optional — why this name was chosen>"
+    behavioral_subtype_note: "<optional — subtype design rationale>"
+    invariants:                          # optional — type-level invariants
+      - "<constraint that holds across all variants>"
+    builder:                             # optional — typed construction interface
+      method: "<constructor_name>"
+      required_params: ["<param>"]
+      optional_params: ["<param>"]
+      validation: "<what the builder checks before constructing>"
     variants:
       - name: "<variant_name>"
+        notes: "<optional — variant-specific clarification>"
         fields:
           - name: "<field_name>"
             type: "<string | integer | float | boolean | bytes | array[T] | map | TypeRef>"
@@ -292,8 +309,12 @@ types:
               pattern: "<regex>"
               enum: ["<value1>", "<value2>"]
             description: "<what this field means>"
+            notes: "<optional — field-specific clarification>"
         invariants:
           - "<constraint specific to this variant>"
+        builder:                         # optional — variant-level builder if different from type-level
+          method: "<constructor_name>"
+          required_params: ["<param>"]
     default_variant: "<variant_name>"
     construction_defaults:
       "<field_name>": "<default_value_or_algorithm>"
@@ -301,6 +322,18 @@ types:
       - format: "<json | cbor | cesr | msgpack | protobuf>"
         notes: "<encoding-specific rules>"
 ```
+
+**Extension fields on types:**
+
+| Field | Level | Purpose |
+|-------|-------|---------|
+| `notes` | Type, variant, or field | Inline clarification — design rationale, edge cases, domain knowledge that doesn't fit other fields |
+| `builder` | Type or variant | Typed Builder pattern for complex types with 3+ required fields. Documents the construction interface: required/optional params and validation rules. Enables AI code generators to produce builder implementations |
+| `invariants` | Type level | Constraints that hold across all variants (variant-level invariants already existed) |
+| `naming_note` | Type | Why this name was chosen — preserves linguistic discovery rationale |
+| `behavioral_subtype_note` | Type | Subtype design rationale — explains how this type relates to a parent type behaviorally |
+
+**When to use `builder`:** If a type has 3+ required fields, or if construction requires validation beyond field-level constraints (cross-field dependencies, conditional required fields), document the builder interface. If construction is trivial (1-2 fields, no cross-field rules), omit it.
 
 ---
 

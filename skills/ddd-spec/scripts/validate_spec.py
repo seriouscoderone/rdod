@@ -649,7 +649,7 @@ def _port_key(port):
     name = port.get("name", "")
     contract = port.get("contract")
     if isinstance(contract, dict):
-        return (name, contract.get("input", ""), contract.get("output", ""))
+        return (name, str(contract.get("input", "")), str(contract.get("output", "")))
     return (name, str(contract or ""), "")
 
 
