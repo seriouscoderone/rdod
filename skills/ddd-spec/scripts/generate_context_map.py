@@ -106,6 +106,72 @@ def strip_prefix(ref):
     return ref
 
 
+def _collect_type_refs(data):
+    """Recursively collect all types:// and kernel:// URI target domains from nested data."""
+    refs = set()
+    if isinstance(data, str) and "://" in data:
+        for scheme in ("types://", "kernel://"):
+            if data.startswith(scheme):
+                rest = data[len(scheme):]
+                # Strip fragment: "cesr/primitives#AID" → "cesr/primitives"
+                domain_path = rest.split("#")[0] if "#" in rest else rest
+                if domain_path:
+                    refs.add(domain_path)
+    elif isinstance(data, list):
+        for item in data:
+            refs.update(_collect_type_refs(item))
+    elif isinstance(data, dict):
+        for value in data.values():
+            refs.update(_collect_type_refs(value))
+    return refs
+
+
+def _auto_detect_kernels(domains):
+    """Add kernel edges for domains that reference kernel-tier types but don't declare them.
+
+    Scans _types and _ports for types:// and kernel:// URIs pointing to domains
+    with tier: kernel. Auto-adds to the kernels list so the context map shows the edges.
+    """
+    # Identify kernel domain IDs
+    kernel_ids = set()
+    for did, data in domains.items():
+        if data.get("tier") == "kernel":
+            kernel_ids.add(did)
+    if not kernel_ids:
+        return
+
+    for did, data in domains.items():
+        if did in kernel_ids:
+            continue
+
+        # Collect already-declared kernel refs
+        declared = set()
+        for k in data.get("kernels", []):
+            if isinstance(k, str):
+                declared.add(strip_prefix(k))
+            elif isinstance(k, dict) and k.get("ref"):
+                declared.add(strip_prefix(k["ref"]))
+
+        # Scan types and ports for type references to kernel domains
+        detected = set()
+        for section in ("_types", "_ports"):
+            section_data = data.get(section, [])
+            if section_data:
+                detected.update(_collect_type_refs(section_data))
+
+        # Add undeclared kernel edges
+        for ref_target in detected:
+            if ref_target in kernel_ids and ref_target not in declared:
+                kernels = data.get("kernels")
+                if kernels is None or not isinstance(kernels, list):
+                    data["kernels"] = kernels = []
+                kernels.append({
+                    "ref": f"kernel://{ref_target}",
+                    "relationship": "auto-detected from type references"
+                })
+                declared.add(ref_target)
+
+
 def build_data(domains_dir):
     """Collect all valid domain dicts from domains_dir, enriched with companion files.
     Returns a dict keyed by stripped domain ID."""
@@ -124,6 +190,10 @@ def build_data(domains_dir):
         enrich_domain(data, domain_dir)
         key = strip_prefix(data.get("id", ""))
         domains[key] = data
+
+    # Auto-detect kernel edges from type references
+    _auto_detect_kernels(domains)
+
     return domains
 
 
